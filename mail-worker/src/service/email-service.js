@@ -527,6 +527,10 @@ const emailService = {
 			.get();
 	},
 
+	selectByIdIncludeDel(c, emailId) {
+		return orm(c).select().from(email).where(eq(email.emailId, emailId)).get();
+	},
+
 	async latest(c, params, userId) {
 		let { emailId, accountId, allReceive } = params;
 		allReceive = Number(allReceive);

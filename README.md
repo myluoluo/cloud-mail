@@ -152,5 +152,74 @@ cloud-mail
 
 [Telegram](https://t.me/cloud_mail_tg)
 
+## Webhook 队列迁移
 
+- Webhook 通知配置新增了 `webhook_url`、`webhook_status`、`webhook_secret` 三个字段。
+- 数据库迁移入口仍为 `/api/init/:secret`。
+- 使用当前 GitHub Action 部署时，workflow 会在部署后自动调用该接口完成增量迁移。
+- 如为手动部署，或自动初始化失败，可手动访问 `https://你的项目域名/api/init/你的jwt_secret` 完成字段迁移。
+
+## Webhook PHP 客户端示例
+
+```php
+<?php
+
+$secret = 'replace-with-your-webhook-secret';
+$storeFile = __DIR__ . '/cloud-mail-events.json';
+$signature = $_SERVER['HTTP_X_CLOUD_MAIL_SIGNATURE'] ?? '';
+$eventId = $_SERVER['HTTP_X_CLOUD_MAIL_EVENT_ID'] ?? '';
+$rawBody = file_get_contents('php://input');
+
+if ($signature === '' || $eventId === '') {
+    http_response_code(400);
+    echo 'missing signature or event id';
+    exit;
+}
+
+$expected = hash_hmac('sha256', $rawBody, $secret);
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    echo 'invalid signature';
+    exit;
+}
+
+$eventStore = [];
+if (is_file($storeFile)) {
+    $content = file_get_contents($storeFile);
+    $decoded = json_decode($content, true);
+    if (is_array($decoded)) {
+        $eventStore = $decoded;
+    }
+}
+
+if (isset($eventStore[$eventId])) {
+    http_response_code(200);
+    echo 'duplicate ignored';
+    exit;
+}
+
+$payload = json_decode($rawBody, true);
+if (!is_array($payload)) {
+    http_response_code(400);
+    echo 'invalid json';
+    exit;
+}
+
+// 在这里处理你的业务逻辑
+// $payload['mail'] 内包含完整邮件字段、text、content 和附件元数据
+
+$eventStore[$eventId] = [
+    'handledAt' => gmdate('c'),
+    'emailId' => $payload['mail']['emailId'] ?? null,
+];
+
+file_put_contents(
+    $storeFile,
+    json_encode($eventStore, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+    LOCK_EX
+);
+
+http_response_code(200);
+echo 'ok';
+```
 

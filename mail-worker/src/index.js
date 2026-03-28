@@ -5,6 +5,17 @@ import verifyRecordService from './service/verify-record-service';
 import emailService from './service/email-service';
 import kvObjService from './service/kv-obj-service';
 import oauthService from "./service/oauth-service";
+import webhookService from './service/webhook-service';
+
+async function consumeQueueMessage(env, message) {
+	try {
+		await webhookService.consume({ env }, message);
+	} catch (error) {
+		console.error(`Webhook 队列消费异常 messageId=${message.id}:`, error);
+		message.retry();
+	}
+}
+
 export default {
 	 async fetch(req, env, ctx) {
 
@@ -23,6 +34,9 @@ export default {
 		return env.assets.fetch(req);
 	},
 	email: email,
+	async queue(batch, env, ctx) {
+		await Promise.all(batch.messages.map((message) => consumeQueueMessage(env, message)));
+	},
 	async scheduled(c, env, ctx) {
 		await verifyRecordService.clearRecord({ env })
 		await userService.resetDaySendCount({ env })

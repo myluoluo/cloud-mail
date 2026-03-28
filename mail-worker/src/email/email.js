@@ -10,6 +10,7 @@ import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
+import webhookService from '../service/webhook-service';
 
 export async function email(message, env, ctx) {
 
@@ -19,8 +20,11 @@ export async function email(message, env, ctx) {
 			receive,
 			tgChatId,
 			tgBotStatus,
+			webhookStatus,
 			forwardStatus,
 			forwardEmail,
+			webhookUrl,
+			webhookSecret,
 			ruleEmail,
 			ruleType,
 			r2Domain,
@@ -145,6 +149,18 @@ export async function email(message, env, ctx) {
 		//转发到TG
 		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
 			await telegramService.sendEmailToBot({ env }, emailRow)
+		}
+
+		if (webhookStatus === settingConst.webhookStatus.OPEN && webhookUrl && webhookSecret) {
+			try {
+				await webhookService.enqueue({ env }, {
+					emailId: emailRow.emailId,
+					webhookUrl,
+					webhookSecret
+				});
+			} catch (e) {
+				console.error(`Webhook 入队失败 emailId=${emailRow.emailId}:`, e.message);
+			}
 		}
 
 		//转发到其他邮箱

@@ -8,6 +8,8 @@ import constant from '../const/constant';
 import BizError from '../error/biz-error';
 import {t} from '../i18n/i18n'
 import verifyRecordService from './verify-record-service';
+import { settingConst } from '../const/entity-const';
+import { isHttpUrl } from '../utils/webhook-url';
 
 const settingService = {
 
@@ -81,6 +83,7 @@ const settingService = {
 		}
 
 		settingRow.secretKey = settingRow.secretKey ? `${settingRow.secretKey.slice(0, 6)}******` : null;
+		settingRow.webhookSecret = settingRow.webhookSecret ? `${settingRow.webhookSecret.slice(0, 12)}******` : null;
 
 		Object.keys(settingRow.resendTokens).forEach(key => {
 			settingRow.resendTokens[key] = `${settingRow.resendTokens[key].slice(0, 12)}******`;
@@ -112,18 +115,47 @@ const settingService = {
 
 	async set(c, params) {
 		const settingData = await this.query(c);
-		let resendTokens = { ...settingData.resendTokens, ...params.resendTokens };
+		const nextParams = {
+			...params,
+			webhookUrl: typeof params.webhookUrl === 'string' ? params.webhookUrl.trim() : params.webhookUrl,
+		};
+
+		this.validateWebhookConfig(nextParams, settingData);
+		let resendTokens = { ...settingData.resendTokens, ...nextParams.resendTokens };
 		Object.keys(resendTokens).forEach(domain => {
 			if (!resendTokens[domain]) delete resendTokens[domain];
 		});
 
-		if (Array.isArray(params.emailPrefixFilter)) {
-			params.emailPrefixFilter = params.emailPrefixFilter + '';
+		if (Array.isArray(nextParams.emailPrefixFilter)) {
+			nextParams.emailPrefixFilter = nextParams.emailPrefixFilter + '';
 		}
 
-		params.resendTokens = JSON.stringify(resendTokens);
-		await orm(c).update(setting).set({ ...params }).returning().get();
+		nextParams.resendTokens = JSON.stringify(resendTokens);
+		await orm(c).update(setting).set({ ...nextParams }).returning().get();
 		await this.refresh(c);
+	},
+
+	validateWebhookConfig(params, settingData) {
+		const nextWebhookStatus = params.webhookStatus ?? settingData.webhookStatus;
+
+		if (nextWebhookStatus !== settingConst.webhookStatus.OPEN) {
+			return;
+		}
+
+		const nextWebhookUrl = (params.webhookUrl ?? settingData.webhookUrl ?? '').trim();
+		const nextWebhookSecret = params.webhookSecret ?? settingData.webhookSecret ?? '';
+
+		if (!nextWebhookUrl) {
+			throw new BizError(t('webhookUrlRequired'));
+		}
+
+		if (!isHttpUrl(nextWebhookUrl)) {
+			throw new BizError(t('webhookUrlInvalid'));
+		}
+
+		if (!nextWebhookSecret) {
+			throw new BizError(t('webhookSecretRequired'));
+		}
 	},
 
 	async deleteBackground(c) {

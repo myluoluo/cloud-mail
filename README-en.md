@@ -144,3 +144,74 @@ This project is licensed under the [MIT](LICENSE) license.
 ## Communication
 
 [Telegram](https://t.me/cloud_mail_tg)
+
+## Webhook Queue Migration
+
+- Webhook notification adds three new setting fields: `webhook_url`, `webhook_status`, and `webhook_secret`.
+- The migration entry remains `/api/init/:secret`.
+- When deploying with the current GitHub Action workflow, it will call this endpoint automatically after deployment.
+- For manual deployments, or if automatic initialization fails, visit `https://your-domain/api/init/your_jwt_secret` to apply the new columns.
+
+## Webhook PHP Client Example
+
+```php
+<?php
+
+$secret = 'replace-with-your-webhook-secret';
+$storeFile = __DIR__ . '/cloud-mail-events.json';
+$signature = $_SERVER['HTTP_X_CLOUD_MAIL_SIGNATURE'] ?? '';
+$eventId = $_SERVER['HTTP_X_CLOUD_MAIL_EVENT_ID'] ?? '';
+$rawBody = file_get_contents('php://input');
+
+if ($signature === '' || $eventId === '') {
+    http_response_code(400);
+    echo 'missing signature or event id';
+    exit;
+}
+
+$expected = hash_hmac('sha256', $rawBody, $secret);
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    echo 'invalid signature';
+    exit;
+}
+
+$eventStore = [];
+if (is_file($storeFile)) {
+    $content = file_get_contents($storeFile);
+    $decoded = json_decode($content, true);
+    if (is_array($decoded)) {
+        $eventStore = $decoded;
+    }
+}
+
+if (isset($eventStore[$eventId])) {
+    http_response_code(200);
+    echo 'duplicate ignored';
+    exit;
+}
+
+$payload = json_decode($rawBody, true);
+if (!is_array($payload)) {
+    http_response_code(400);
+    echo 'invalid json';
+    exit;
+}
+
+// Handle your own business logic here
+// $payload['mail'] contains full mail fields, text, content and attachment metadata
+
+$eventStore[$eventId] = [
+    'handledAt' => gmdate('c'),
+    'emailId' => $payload['mail']['emailId'] ?? null,
+];
+
+file_put_contents(
+    $storeFile,
+    json_encode($eventStore, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+    LOCK_EX
+);
+
+http_response_code(200);
+echo 'ok';
+```

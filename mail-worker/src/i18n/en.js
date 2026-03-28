@@ -65,6 +65,9 @@ const en = {
 	notAdmin: 'The entered email is not an administrator email',
 	emailExistDatabase: 'Email already exists in the database',
 	notConfigOss: 'Object storage not configured',
+	webhookUrlRequired: 'Webhook URL is required when Webhook is enabled',
+	webhookUrlInvalid: 'A valid http/https Webhook URL is required when Webhook is enabled',
+	webhookSecretRequired: 'Webhook secret is required when Webhook is enabled',
 	perms: {
 		"邮件": "Emails",
 		"邮件发送": "Send Email",

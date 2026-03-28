@@ -65,6 +65,9 @@ const zh = {
 	notAdmin: '输入的邮箱不是管理员邮箱',
 	emailExistDatabase: '有邮箱已存在数据库中',
 	notConfigOss: '对象存储未配置',
+	webhookUrlRequired: '启用 Webhook 时必须填写 Webhook URL',
+	webhookUrlInvalid: '启用 Webhook 时必须填写合法的 http/https URL',
+	webhookSecretRequired: '启用 Webhook 时必须保留或填写 Webhook Secret',
 	perms: {
 		"邮件": "邮件",
 		"邮件发送": "邮件发送",

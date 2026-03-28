@@ -28,8 +28,25 @@ const dbInit = {
 		await this.v2_7DB(c);
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
+		await this.v2_10DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
+	},
+
+	async v2_10DB(c) {
+		const sqlList = [
+			`ALTER TABLE setting ADD COLUMN webhook_url TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE setting ADD COLUMN webhook_status INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN webhook_secret TEXT NOT NULL DEFAULT '';`,
+		];
+
+		for (const sql of sqlList) {
+			try {
+				await c.env.db.prepare(sql).run();
+			} catch (e) {
+				console.warn(`跳过字段：${e.message}`);
+			}
+		}
 	},
 
 	async v2_9DB(c) {
@@ -573,16 +590,19 @@ const dbInit = {
 			title TEXT NOT NULL,
 			auto_refresh INTEGER NOT NULL,
 			register_verify INTEGER NOT NULL,
-			add_email_verify INTEGER NOT NULL
+			add_email_verify INTEGER NOT NULL,
+			webhook_url TEXT NOT NULL DEFAULT '',
+			webhook_status INTEGER NOT NULL DEFAULT 1,
+			webhook_secret TEXT NOT NULL DEFAULT ''
 		  )
 		`).run();
 
 		try {
 			await c.env.db.prepare(`
 			  INSERT INTO setting (
-				register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify
+				register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify, webhook_url, webhook_status, webhook_secret
 			  )
-			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1
+			  SELECT 0, 0, 0, 0, 'Cloud Mail', 0, 1, 1, '', 1, ''
 			  WHERE NOT EXISTS (SELECT 1 FROM setting)
 			`).run();
 		} catch (e) {

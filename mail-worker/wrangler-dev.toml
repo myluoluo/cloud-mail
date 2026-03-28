@@ -18,6 +18,16 @@ database_id = "a4c1a63a-6ef5-4e6d-8e8c-b6d9e8feb810"
 binding = "kv"
 id = "2io01d4b299e481b9de060ece9e7785c"
 
+[[queues.producers]]
+binding = "notifyQueue"	#队列绑定名默认不可修改
+queue = "cloud-mail-notify-dev"
+
+[[queues.consumers]]
+queue = "cloud-mail-notify-dev"
+dead_letter_queue = "cloud-mail-notify-dev-dlq"
+max_retries = 5
+retry_delay = 120
+
 #[[r2_buckets]]
 #binding = "r2"
 #bucket_name = "email"

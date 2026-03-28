@@ -203,6 +203,10 @@ const attService = {
 			.all();
 	},
 
+	selectMetaByEmailId(c, emailId) {
+		return orm(c).select().from(att).where(eq(att.emailId, emailId)).all();
+	},
+
 	async removeAttByField(c, fieldName, fieldValues) {
 
 		const sqlList = [];

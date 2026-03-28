@@ -255,6 +255,15 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div><span>{{ $t('webhook') }}</span></div>
+                <div class="forward">
+                  <span>{{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
+                  <el-button class="opt-button" size="small" type="primary" @click="openWebhookSetting">
+                    <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
+                  </el-button>
+                </div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('forwardingRules') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}</span>
@@ -593,6 +602,37 @@
           </div>
         </template>
       </el-dialog>
+      <el-dialog
+          v-model="webhookSettingShow"
+          class="forward-dialog"
+      >
+        <template #header>
+          <div class="forward-head">
+            <span class="forward-set-title">{{ $t('webhook') }}</span>
+            <el-tooltip effect="dark" :content="$t('webhookDesc')">
+              <Icon class="warning" icon="fe:warning" width="18" height="18"/>
+            </el-tooltip>
+          </div>
+        </template>
+        <div class="forward-set-body">
+          <el-input :placeholder="$t('webhookUrl')" v-model="webhookForm.webhookUrl"></el-input>
+          <el-input
+              :placeholder="setting.webhookSecret || $t('webhookSecret')"
+              v-model="webhookForm.webhookSecret"
+              :disabled="webhookForm.clearWebhookSecret"
+          ></el-input>
+          <el-checkbox v-model="webhookForm.clearWebhookSecret">{{ $t('clearWebhookSecret') }}</el-checkbox>
+        </div>
+        <template #footer>
+          <div class="dialog-footer">
+            <el-switch v-model="webhookForm.webhookStatus" :active-value="0" :inactive-value="1" :active-text="$t('enable')"
+                       :inactive-text="$t('disable')"/>
+            <el-button :loading="settingLoading" type="primary" @click="webhookSave">
+              {{ $t('save') }}
+            </el-button>
+          </div>
+        </template>
+      </el-dialog>
       <el-dialog class="resend-table" v-model="showResendList" :title="$t('resendTokenList')">
         <el-table :data="resendList">
           <el-table-column :min-width="emailColumnWidth" property="key" :label="$t('domain')"
@@ -743,12 +783,13 @@ import {Icon} from "@iconify/vue";
 import {cvtR2Url} from "@/utils/convert.js";
 import {storeToRefs} from "pinia";
 import {debounce} from 'lodash-es'
-import {isEmail} from "@/utils/verify-utils.js";
+import {isEmail, isHttpUrl} from "@/utils/verify-utils.js";
 import loading from "@/components/loading/index.vue";
 import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
 import axios from "axios";
+import { buildWebhookSettingForm, createWebhookSettingDraft, validateWebhookSettingForm } from "@/utils/webhook-setting.js";
 
 defineOptions({
   name: 'sys-setting'
@@ -770,6 +811,7 @@ const turnstileShow = ref(false)
 const tgSettingShow = ref(false)
 const noticePopupShow = ref(false)
 const thirdEmailShow = ref(false)
+const webhookSettingShow = ref(false)
 const forwardRulesShow = ref(false)
 const emailPrefixShow = ref(false)
 const showResendList = ref(false)
@@ -849,6 +891,10 @@ const ruleEmail = ref([])
 const tgMsgFrom = ref('')
 const tgMsgTo = ref('')
 const tgMsgText = ref('')
+const webhookForm = reactive(createWebhookSettingDraft({
+  webhookStatus: 1,
+  webhookUrl: '',
+}))
 
 const tgMsgFromOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}, {label: t('onlyName'), value:'only-name'}]
 const tgMsgToOption = [{label: t('show'), value: 'show'}, {label: t('hide'), value: 'hide'}]
@@ -1021,6 +1067,15 @@ function openThirdEmailSetting() {
   thirdEmailShow.value = true
 }
 
+function openWebhookSetting() {
+  const draft = createWebhookSettingDraft({
+    webhookStatus: setting.value.webhookStatus,
+    webhookUrl: setting.value.webhookUrl,
+  })
+  Object.assign(webhookForm, draft)
+  webhookSettingShow.value = true
+}
+
 function openEmailPrefix() {
   emailPrefixShow.value = true
 }
@@ -1126,6 +1181,39 @@ function forwardEmailSave() {
     forwardEmail: forwardEmail.value + ''
   }
   editSetting(form)
+}
+
+function webhookSave() {
+  const webhookUrl = webhookForm.webhookUrl.trim()
+  const errorKey = validateWebhookSettingForm({
+    ...webhookForm,
+    webhookUrl,
+  }, {
+    hasSavedSecret: !!setting.value.webhookSecret,
+  })
+
+  if (errorKey) {
+    ElMessage({
+      message: t(errorKey),
+      type: "error",
+      plain: true
+    })
+    return
+  }
+
+  if (webhookUrl && !isHttpUrl(webhookUrl)) {
+    ElMessage({
+      message: t('webhookUrlErrorMsg'),
+      type: "error",
+      plain: true
+    })
+    return
+  }
+
+  editSetting(buildWebhookSettingForm({
+    ...webhookForm,
+    webhookUrl,
+  }))
 }
 
 
@@ -1259,6 +1347,7 @@ function backupSetting() {
   delete settingForm.resendTokens
   delete settingForm.siteKey
   delete settingForm.secretKey
+  delete settingForm.webhookSecret
   backup = JSON.stringify(setting.value)
 }
 
@@ -1276,6 +1365,7 @@ function change(e) {
   const settingForm = {...setting.value}
   delete settingForm.siteKey
   delete settingForm.secretKey
+  delete settingForm.webhookSecret
   delete settingForm.s3AccessKey
   delete settingForm.s3SecretKey
   delete settingForm.resendTokens
@@ -1316,6 +1406,7 @@ function editSetting(settingForm, refreshStatus = true) {
     turnstileShow.value = false
     tgSettingShow.value = false
     thirdEmailShow.value = false
+    webhookSettingShow.value = false
     forwardRulesShow.value = false
     addVerifyCountShow.value = false
     regVerifyCountShow.value = false

@@ -15,6 +15,16 @@ enabled = true
 #binding = "kv"			#kv绑定名默认不可修改
 #id = ""					#kv数据库id
 
+#[[queues.producers]]
+#binding = "notifyQueue"	#队列绑定名默认不可修改
+#queue = "cloud-mail-notify"
+
+#[[queues.consumers]]
+#queue = "cloud-mail-notify"
+#dead_letter_queue = "cloud-mail-notify-dlq"
+#max_retries = 5
+#retry_delay = 120
+
 #[[r2_buckets]]
 #binding = "r2"			#r2对象存储绑定名默认不可修改
 #bucket_name = ""		#r2对象存储桶的名字
