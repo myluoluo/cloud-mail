@@ -8,15 +8,16 @@ export const useEmailStore = defineStore('email', {
         emailScroll: null,
         cancelStarEmailId: 0,
         addStarEmailId: 0,
-        contentData: {
+		contentData: {
             email: null,
             delType: null,
             showStar: true,
             showReply: true,
             showUnread: false
-        },
-        sendScroll: null,
-        detailMap: {},
+		},
+		sendScroll: null,
+		detailMap: {},
+		currentEmailList: [],
     }),
     persist: {
         pick: ['contentData'],

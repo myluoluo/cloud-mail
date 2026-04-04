@@ -2,6 +2,8 @@
   <div class="box">
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
+      <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-left" width="22" height="22" @click="navigate(-1)"/>
+      <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-right" width="22" height="22" @click="navigate(1)"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
@@ -107,6 +109,7 @@ const email = computed(() => emailStore.contentData.email || {
 })
 const showPreview = ref(false)
 const srcList = reactive([])
+const hasNavigationContext = computed(() => emailStore.currentEmailList.length > 1)
 
 const { t } = useI18n()
 watch(() => accountStore.currentAccountId, () => {
@@ -155,6 +158,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
+  emailStore.currentEmailList = [];
   readRequesting = false
   window.removeEventListener('keydown', handleKeyDown);
 })
@@ -234,6 +238,17 @@ const handleBack = () => {
   router.back()
 }
 
+function navigate(offset) {
+  const list = emailStore.currentEmailList
+  const index = list.findIndex(item => item.emailId === email.value.emailId)
+  const target = index >= 0 ? list[index + offset] : null
+  if (!target) {
+    ElMessage({message: t('noMoreEmail'), type: 'warning', plain: true})
+    return
+  }
+  emailStore.contentData.email = emailStore.toContentEmail(target)
+}
+
 const handleDelete = () => {
   ElMessageBox.confirm(t('delEmailConfirm'), {
     confirmButtonText: t('confirm'),
@@ -286,6 +301,12 @@ const handleDelete = () => {
   }
   .icon {
     cursor: pointer;
+  }
+  .nav-icon {
+    color: var(--el-text-color-regular);
+    &:hover {
+      color: var(--el-color-primary);
+    }
   }
 }
 
