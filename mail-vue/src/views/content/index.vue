@@ -5,6 +5,7 @@
       <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-left" width="22" height="22" @click="navigate(-1)"/>
       <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-right" width="22" height="22" @click="navigate(1)"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon v-if="emailStore.contentData.showUnread" class="icon" icon="material-symbols-light:mark-email-unread-outline" width="20" height="20" @click="handleUnread"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
@@ -80,7 +81,7 @@ import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailDelete, emailRead, emailUnread} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -116,27 +117,27 @@ watch(() => accountStore.currentAccountId, () => {
   handleBack()
 })
 
-let readRequesting = false
+const readRequesting = new Set()
 
 function tryMarkRead() {
-  if (!emailStore.contentData.showUnread || readRequesting) return
+  if (!emailStore.contentData.showUnread) return
   const current = email.value
-  if (!current?.emailId || current.unread !== EmailUnreadEnum.UNREAD) return
+  if (!current?.emailId || current.unread !== EmailUnreadEnum.UNREAD || readRequesting.has(current.emailId)) return
 
   // 等详情数据就绪（detailMap 已写入，或正文已有内容）再标已读
   const full = emailStore.detailMap[current.emailId]
   const detailReady = !!full || !!(current.content || current.text)
   if (!detailReady) return
 
-  readRequesting = true
   const emailId = current.emailId
+  readRequesting.add(emailId)
   current.unread = EmailUnreadEnum.READ
   if (emailStore.detailMap[emailId]) {
     emailStore.detailMap[emailId].unread = EmailUnreadEnum.READ
   }
-  emailStore.markListRead(emailId)
+  emailStore.setListUnread(emailId, EmailUnreadEnum.READ)
   emailRead([emailId]).finally(() => {
-    readRequesting = false
+    readRequesting.delete(emailId)
   })
 }
 
@@ -159,7 +160,7 @@ onMounted(() => {
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   emailStore.currentEmailList = [];
-  readRequesting = false
+  readRequesting.clear()
   window.removeEventListener('keydown', handleKeyDown);
 })
 
@@ -247,6 +248,24 @@ function navigate(offset) {
     return
   }
   emailStore.contentData.email = emailStore.toContentEmail(target)
+}
+
+function handleUnread() {
+  const emailId = email.value.emailId
+  emailUnread([emailId]).then(() => {
+    email.value.unread = EmailUnreadEnum.UNREAD
+    if (emailStore.detailMap[emailId]) {
+      emailStore.detailMap[emailId].unread = EmailUnreadEnum.UNREAD
+    }
+    emailStore.setListUnread(emailId, EmailUnreadEnum.UNREAD)
+    ElMessage({
+      message: t('markUnreadSuccess'),
+      type: 'success',
+      plain: true,
+    })
+  }).catch((e) => {
+    console.error(e)
+  })
 }
 
 const handleDelete = () => {
