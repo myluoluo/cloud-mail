@@ -5,6 +5,7 @@
       <Icon class="icon nav-icon" icon="material-symbols-light:chevron-left" width="22" height="22" @click="goPrev" v-if="hasNavigationContext"/>
       <Icon class="icon nav-icon" icon="material-symbols-light:chevron-right" width="22" height="22" @click="goNext" v-if="hasNavigationContext"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
+      <Icon class="icon" icon="material-symbols-light:mark-email-unread-outline" width="20" height="20" @click="handleUnread"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
         <Icon class="icon" @click="changeStar" v-else icon="solar:star-line-duotone" width="18" height="18"/>
@@ -80,7 +81,7 @@ import ShadowHtml from '@/components/shadow-html/index.vue'
 import {reactive, ref, watch, onMounted, onUnmounted, computed} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead} from "@/request/email.js";
+import {emailDelete, emailRead, emailUnread} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -247,6 +248,21 @@ function goNext() {
   } else {
     ElMessage({ message: t('noMoreEmail'), type: 'warning', plain: true });
   }
+}
+
+function handleUnread() {
+  emailUnread([email.value.emailId]).then(() => {
+    email.value.unread = EmailUnreadEnum.UNREAD;
+    ElMessage({
+      message: t('markUnreadSuccess'),
+      type: 'success',
+      plain: true,
+    })
+    emailStore.unreadEmailId = email.value.emailId
+    setTimeout(() => emailStore.unreadEmailId = 0)
+  }).catch((e) => {
+    console.error(e)
+  })
 }
 
 const handleDelete = () => {

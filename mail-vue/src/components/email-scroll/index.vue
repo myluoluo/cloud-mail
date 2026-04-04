@@ -469,6 +469,14 @@ watch(() => emailStore.addStarEmailId, () => {
   })
 })
 
+watch(() => emailStore.unreadEmailId, () => {
+  emailList.forEach(email => {
+    if (email.emailId === emailStore.unreadEmailId) {
+      email.unread = EmailUnreadEnum.UNREAD
+    }
+  })
+})
+
 window.addEventListener('wheel', (event) => {
   if (dropdownShow.value) {
     dropdownRef.value.handleClose();
