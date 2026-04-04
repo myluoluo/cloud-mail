@@ -11,6 +11,7 @@ const zh = {
     inviteCode: '注册密钥',
     SystemSettings: '系统设置',
     noMoreData: '没有更多数据了',
+    noMoreEmail: '没有更多邮件了',
     noMessagesFound: '没有任何邮件',
     addAccount: '添加邮箱',
     emailAccount: '邮箱',

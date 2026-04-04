@@ -11,6 +11,7 @@ const en = {
     inviteCode: 'Invite Code',
     SystemSettings: 'System Settings',
     noMoreData: 'No more data',
+    noMoreEmail: 'No more emails',
     noMessagesFound: 'No messages found',
     addAccount: 'Add Email Address',
     emailAccount: 'Email',

@@ -2,6 +2,8 @@
   <div class="box">
     <div class="header-actions">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
+      <Icon class="icon nav-icon" icon="material-symbols-light:chevron-left" width="22" height="22" @click="goPrev" v-if="hasNavigationContext"/>
+      <Icon class="icon nav-icon" icon="material-symbols-light:chevron-right" width="22" height="22" @click="goNext" v-if="hasNavigationContext"/>
       <Icon v-perm="'email:delete'" class="icon" icon="uiw:delete" width="16" height="16" @click="handleDelete"/>
       <span class="star" v-if="emailStore.contentData.showStar">
         <Icon class="icon" @click="changeStar" v-if="email.isStar" icon="fluent-color:star-16" width="20" height="20"/>
@@ -75,7 +77,7 @@
 </template>
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
-import {reactive, ref, watch, onMounted, onUnmounted} from "vue";
+import {reactive, ref, watch, onMounted, onUnmounted, computed} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {emailDelete, emailRead} from "@/request/email.js";
@@ -98,9 +100,16 @@ const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
 const router = useRouter()
-const email = emailStore.contentData.email
+const email = computed(() => emailStore.contentData.email)
 const showPreview = ref(false)
 const srcList = reactive([])
+
+/**
+ * 是否有导航上下文（列表有多于一封邮件时显示）
+ */
+const hasNavigationContext = computed(() => {
+  return emailStore.currentEmailList.length > 1;
+})
 
 const { t } = useI18n()
 watch(() => accountStore.currentAccountId, () => {
@@ -108,22 +117,23 @@ watch(() => accountStore.currentAccountId, () => {
 })
 
 onMounted(() => {
-  if (emailStore.contentData.showUnread && email.unread === EmailUnreadEnum.UNREAD) {
-    email.unread = EmailUnreadEnum.READ;
-    emailRead([email.emailId]);
+  if (emailStore.contentData.showUnread && email.value.unread === EmailUnreadEnum.UNREAD) {
+    email.value.unread = EmailUnreadEnum.READ;
+    emailRead([email.value.emailId]);
   }
 })
 
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
+  emailStore.currentEmailList = [];
 })
 
 function openReply() {
-  uiStore.writerRef.openReply(email)
+  uiStore.writerRef.openReply(email.value)
 }
 
 function openForward() {
-  uiStore.writerRef.openForward(email)
+  uiStore.writerRef.openForward(email.value)
 }
 
 function toMessage(message) {
@@ -154,33 +164,89 @@ function formateReceive(recipient) {
 }
 
 function changeStar() {
-  if (email.isStar) {
-    email.isStar = 0;
-    starCancel(email.emailId).then(() => {
-      email.isStar = 0;
-      emailStore.cancelStarEmailId = email.emailId
+  if (email.value.isStar) {
+    email.value.isStar = 0;
+    starCancel(email.value.emailId).then(() => {
+      email.value.isStar = 0;
+      emailStore.cancelStarEmailId = email.value.emailId
       setTimeout(() => emailStore.cancelStarEmailId = 0)
-      emailStore.starScroll?.deleteEmail([email.emailId])
+      emailStore.starScroll?.deleteEmail([email.value.emailId])
     }).catch((e) => {
       console.error(e)
-      email.isStar = 1;
+      email.value.isStar = 1;
     })
   } else {
-    email.isStar = 1;
-    starAdd(email.emailId).then(() => {
-      email.isStar = 1;
-      emailStore.addStarEmailId = email.emailId
+    email.value.isStar = 1;
+    starAdd(email.value.emailId).then(() => {
+      email.value.isStar = 1;
+      emailStore.addStarEmailId = email.value.emailId
       setTimeout(() => emailStore.addStarEmailId = 0)
-      emailStore.starScroll?.addItem(email)
+      emailStore.starScroll?.addItem(email.value)
     }).catch((e) => {
       console.error(e)
-      email.isStar = 0;
+      email.value.isStar = 0;
     })
   }
 }
 
 const handleBack = () => {
   router.back()
+}
+
+/**
+ * 根据当前邮件列表获取上一封（列表中的上一个）
+ */
+function getPrevEmail(currentEmailId) {
+  const list = emailStore.currentEmailList;
+  if (!list || list.length === 0) return null;
+  const index = list.findIndex(e => e.emailId === currentEmailId);
+  if (index === -1) return null;
+  // 上一封 = 列表中的上一个（索引-1）
+  return index > 0 ? list[index - 1] : null;
+}
+
+/**
+ * 根据当前邮件列表获取下一封（列表中的下一个）
+ */
+function getNextEmail(currentEmailId) {
+  const list = emailStore.currentEmailList;
+  if (!list || list.length === 0) return null;
+  const index = list.findIndex(e => e.emailId === currentEmailId);
+  if (index === -1) return null;
+  // 下一封 = 列表中的下一个（索引+1）
+  return index < list.length - 1 ? list[index + 1] : null;
+}
+
+/**
+ * 跳转到上一封邮件
+ */
+function goPrev() {
+  const prev = getPrevEmail(email.value.emailId);
+  if (prev) {
+    emailStore.contentData.email = prev;
+    if (prev.unread === EmailUnreadEnum.UNREAD) {
+      prev.unread = EmailUnreadEnum.READ;
+      emailRead([prev.emailId]);
+    }
+  } else {
+    ElMessage({ message: t('noMoreEmail'), type: 'warning', plain: true });
+  }
+}
+
+/**
+ * 跳转到下一封邮件
+ */
+function goNext() {
+  const next = getNextEmail(email.value.emailId);
+  if (next) {
+    emailStore.contentData.email = next;
+    if (next.unread === EmailUnreadEnum.UNREAD) {
+      next.unread = EmailUnreadEnum.READ;
+      emailRead([next.emailId]);
+    }
+  } else {
+    ElMessage({ message: t('noMoreEmail'), type: 'warning', plain: true });
+  }
 }
 
 const handleDelete = () => {
@@ -190,23 +256,23 @@ const handleDelete = () => {
     type: 'warning'
   }).then(() => {
     if (emailStore.contentData.delType === 'logic') {
-      emailDelete(email.emailId).then(() => {
+      emailDelete(email.value.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.emailId]
+        emailStore.deleteIds = [email.value.emailId]
       })
     } else  {
 
-      allEmailDelete(email.emailId).then(() => {
+      allEmailDelete(email.value.emailId).then(() => {
         ElMessage({
           message: t('delSuccessMsg'),
           type: 'success',
           plain: true,
         })
-        emailStore.deleteIds = [email.emailId]
+        emailStore.deleteIds = [email.value.emailId]
       })
     }
 
@@ -235,6 +301,12 @@ const handleDelete = () => {
   }
   .icon {
     cursor: pointer;
+  }
+  .nav-icon {
+    color: var(--el-text-color-regular);
+    &:hover {
+      color: var(--el-color-primary);
+    }
   }
 }
 

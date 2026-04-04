@@ -5,6 +5,7 @@ export const useEmailStore = defineStore('email', {
         deleteIds: 0,
         starScroll: null,
         emailScroll: null,
+        sendScroll: null,
         cancelStarEmailId: 0,
         addStarEmailId: 0,
         contentData: {
@@ -14,7 +15,8 @@ export const useEmailStore = defineStore('email', {
             showReply: true,
             showUnread: false
         },
-        sendScroll: null,
+        // 当前邮件列表，用于详情页导航
+        currentEmailList: [],
     }),
     persist: {
         pick: ['contentData'],
