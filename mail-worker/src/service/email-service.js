@@ -793,20 +793,33 @@ const emailService = {
 		}
 
 		if (conditions.length === 0) {
-			return;
+			return {
+				matchedCount: 0,
+				deletedCount: 0,
+			};
 		}
 
-		const emailIdsRow = await orm(c).select({emailId: email.emailId}).from(email).where(conditions.length > 1 ? and(...conditions) : conditions[0]).all();
+		conditions.push(ne(email.status, emailConst.status.SAVING));
+		const deleteCondition = conditions.length > 1 ? and(...conditions) : conditions[0];
+		const emailIdsRow = await orm(c).select({emailId: email.emailId}).from(email).where(deleteCondition).all();
 
 		const emailIds = emailIdsRow.map(row => row.emailId);
 
 		if (emailIds.length === 0){
-			return;
+			return {
+				matchedCount: 0,
+				deletedCount: 0,
+			};
 		}
 
 		await attService.removeByEmailIds(c, emailIds);
+		await starService.removeByEmailIds(c, emailIds);
+		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
 
-		await orm(c).delete(email).where(conditions.length > 1 ? and(...conditions) : conditions[0]).run();
+		return {
+			matchedCount: emailIds.length,
+			deletedCount: emailIds.length,
+		};
 	},
 
 	async physicsDeleteByAccountId(c, accountId) {

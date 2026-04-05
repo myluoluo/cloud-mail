@@ -213,14 +213,20 @@ function batchDelete() {
   ).then(() => {
     clearLoading.value = true
 
-    allEmailBatchDelete(clearParams).then(() => {
+    allEmailBatchDelete(clearParams).then((data) => {
+      const deletedCount = data?.deletedCount ?? 0;
+
       ElMessage({
-        message: t('clearSuccess'),
-        type: "success",
+        message: deletedCount > 0
+            ? t('clearSuccessCount', { count: deletedCount })
+            : t('clearNoMatch'),
+        type: deletedCount > 0 ? "success" : "warning",
         plain: true
       })
       resetClearParams()
-      sysEmailScroll.value.refreshList();
+      if (deletedCount > 0) {
+        sysEmailScroll.value.refreshList();
+      }
     }).finally(() => {
       clearLoading.value = false
     })

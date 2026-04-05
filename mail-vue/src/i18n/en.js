@@ -303,6 +303,8 @@ const en = {
     clear: 'Clear',
     include: 'Include',
     delAllConfirm: 'Do you really want to delete it?',
+    clearSuccessCount: 'Cleared {count} emails',
+    clearNoMatch: 'No emails matched. Nothing was deleted.',
     pin: 'Pin',
     s3Configuration: 'S3 Configuration',
     confirmDeletionOfContacts: 'Confirm clearing contacts?',

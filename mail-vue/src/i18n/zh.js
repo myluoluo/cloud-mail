@@ -303,6 +303,8 @@ const zh = {
     clear: '清除',
     include: '包含',
     delAllConfirm: '确定要删除吗？',
+    clearSuccessCount: '已清除 {count} 封邮件',
+    clearNoMatch: '未命中任何邮件，未执行删除',
     pin: '置顶',
     s3Configuration: 'S3 配置',
     confirmDeletionOfContacts: '确认清除这些联系人吗？',
