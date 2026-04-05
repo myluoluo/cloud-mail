@@ -40,8 +40,10 @@
             ref="tableRef"
             @cell-contextmenu="handleContextmenu"
             :cell-class-name="cellClassName"
+            @select="handleUserSelect"
+            @select-all="handleUserSelectAll"
         >
-          <el-table-column :width="expandWidth" type="selection" :selectable="row => row.type !== 0" />
+          <el-table-column :width="expandWidth" type="selection" :selectable="isUserSelectable" />
           <el-table-column show-overflow-tooltip :tooltip-formatter="tableRowFormatter" :label="$t('tabEmailAddress')"
                            :min-width="emailWidth">
             <template #default="props">
@@ -365,7 +367,7 @@
 </template>
 
 <script setup>
-import {defineOptions, h, reactive, ref, watch} from 'vue'
+import {defineOptions, h, onMounted, onUnmounted, reactive, ref, watch} from 'vue'
 import {
   userList,
   userDelete,
@@ -387,6 +389,7 @@ import {isEmail} from "@/utils/verify-utils.js";
 import {useRoleStore} from "@/store/role.js";
 import {useUserStore} from "@/store/user.js";
 import {useI18n} from 'vue-i18n';
+import { resolveShiftSelection } from "@/utils/shift-selection.js";
 
 defineOptions({
   name: 'user'
@@ -422,6 +425,8 @@ const accountLoading = ref(false)
 const dropdownRef = ref(null);
 const dropdownShow = ref(false);
 const rightClickUser = ref({});
+const userSelectionAnchorIndex = ref(null);
+const isShiftPressed = ref(false);
 const position = ref(
     DOMRect.fromRect({
       x: 0,
@@ -474,6 +479,7 @@ const accountParams = reactive({
   total: 0,
   userId: 0,
 })
+let syncingUserSelection = false
 
 roleSelectUse().then(list => {
   roleList.length = 0
@@ -520,11 +526,84 @@ window.addEventListener('wheel', (event) => {
   }
 })
 
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('keyup', handleKeyup);
+  window.addEventListener('blur', clearShiftPressed);
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('keyup', handleKeyup);
+  window.removeEventListener('blur', clearShiftPressed);
+})
+
+function handleKeydown(event) {
+  if (event.key === 'Shift') {
+    isShiftPressed.value = true;
+  }
+}
+
+function handleKeyup(event) {
+  if (event.key === 'Shift') {
+    isShiftPressed.value = false;
+  }
+}
+
+function clearShiftPressed() {
+  isShiftPressed.value = false;
+}
+
 function visibleChange(e) {
   dropdownShow.value = e;
   if (!e) {
     rightClickUser.value.checkedClass = '';
   }
+}
+
+function isUserSelectable(row) {
+  return row.type !== 0;
+}
+
+function resetUserSelectionAnchor() {
+  userSelectionAnchorIndex.value = null;
+}
+
+function handleUserSelect(selection, row) {
+  if (syncingUserSelection) {
+    return;
+  }
+
+  const currentIndex = users.value.findIndex(item => item.userId === row.userId);
+  const selectedUserIds = new Set(selection.map(item => item.userId));
+  const nextChecked = selectedUserIds.has(row.userId);
+  const result = resolveShiftSelection({
+    anchorIndex: userSelectionAnchorIndex.value,
+    currentIndex,
+    itemCount: users.value.length,
+    nextChecked,
+    useRange: isShiftPressed.value,
+    isSelectable: (index) => isUserSelectable(users.value[index]),
+  });
+
+  userSelectionAnchorIndex.value = result.nextAnchorIndex;
+
+  if (!result.usedRange || result.indexes.length <= 1) {
+    return;
+  }
+
+  syncingUserSelection = true;
+  try {
+    result.indexes.forEach((index) => {
+      tableRef.value?.toggleRowSelection(users.value[index], result.nextChecked);
+    });
+  } finally {
+    syncingUserSelection = false;
+  }
+}
+
+function handleUserSelectAll() {
+  resetUserSelectionAnchor();
 }
 
 function cellClassName({ row }) {
@@ -919,6 +998,7 @@ function resetUserForm() {
 
 function search() {
   params.num = 1
+  resetUserSelectionAnchor()
   getUserList()
 }
 
@@ -972,6 +1052,7 @@ function refresh() {
   params.num = 1
   params.status = -1
   params.timeSort = 0
+  resetUserSelectionAnchor()
   getUserList();
   roleSelectUse().then(list => {
     roleList.length = 0
@@ -982,16 +1063,19 @@ function refresh() {
 function changeTimeSort() {
   params.num = 1
   params.timeSort = params.timeSort ? 0 : 1
+  resetUserSelectionAnchor()
   getUserList()
 }
 
 function numChange(num) {
   params.num = num
+  resetUserSelectionAnchor()
   getUserList()
 }
 
 function sizeChange(size) {
   params.size = size
+  resetUserSelectionAnchor()
   getUserList()
 }
 
@@ -999,6 +1083,7 @@ function getUserList(loading = true) {
 
   tableLoading.value = loading
   const newParams = {...params}
+  resetUserSelectionAnchor()
 
   if (newParams.status === -2) {
     delete newParams.status
