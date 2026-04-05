@@ -46,8 +46,9 @@
                  @contextmenu="handleContextmenu($event, item)"
             >
               <el-checkbox :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
-                           v-model="item.checked"
+                           :model-value="item.checked"
                            :disabled="!item.checked && isSelectMax"
+                           @change="handleEmailCheckboxChange(index, $event)"
                            @click.stop></el-checkbox>
               <div @click.stop="starChange(item)" class="pc-star" v-if="showStar">
                 <Icon v-if="item.isStar" icon="fluent-color:star-16" width="20" height="20"/>
@@ -247,6 +248,7 @@ import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
+import { resolveShiftSelection } from "@/utils/shift-selection.js";
 
 const props = defineProps({
   getEmailList: Function,
@@ -328,6 +330,8 @@ const rightClickEmail = ref({});
 const MAX_SELECT_COUNT = 95;
 const checkedEmailCount = ref(0);
 const isSelectMax = computed(() => checkedEmailCount.value >= MAX_SELECT_COUNT);
+const emailSelectionAnchorIndex = ref(null);
+const isShiftPressed = ref(false);
 let timer = null
 const position = ref(
     DOMRect.fromRect({
@@ -371,16 +375,34 @@ onMounted(() => {
       email.formatCreateTime = fromNow(email.createTime);
     })
   }, 1000 * 60);
+  window.addEventListener('keydown', handleKeydown);
+  window.addEventListener('keyup', handleKeyup);
+  window.addEventListener('blur', clearShiftPressed);
 })
 
 onUnmounted(() => {
   clearInterval(timer)
+  window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('keyup', handleKeyup);
+  window.removeEventListener('blur', clearShiftPressed);
 })
 
 getEmailList()
 
 window.onresize = () => {
   isMobile.value = innerWidth < 1367
+}
+
+function handleKeydown(event) {
+  if (event.key === 'Shift') isShiftPressed.value = true;
+}
+
+function handleKeyup(event) {
+  if (event.key === 'Shift') isShiftPressed.value = false;
+}
+
+function clearShiftPressed() {
+  isShiftPressed.value = false;
 }
 
 function onScroll(e) {
@@ -683,6 +705,7 @@ function handleDelete() {
 }
 
 function deleteEmail(emailIds) {
+  emailSelectionAnchorIndex.value = null;
   emailIds.forEach(emailId => {
     emailList.forEach((item, index) => {
       if (emailId === item.emailId) {
@@ -696,6 +719,8 @@ function deleteEmail(emailIds) {
 }
 
 function addItem(email) {
+
+  emailSelectionAnchorIndex.value = null;
 
   const existIndex = emailList.findIndex(item => item.emailId === email.emailId)
 
@@ -755,6 +780,29 @@ function handleCheckAllChange(val) {
     emailList.forEach(item => item.checked = false);
   }
   isIndeterminate.value = false;
+  emailSelectionAnchorIndex.value = null;
+}
+
+function handleEmailCheckboxChange(index, checked) {
+  let selectedCount = emailList.filter(item => item.checked).length;
+  const result = resolveShiftSelection({
+    anchorIndex: emailSelectionAnchorIndex.value,
+    currentIndex: index,
+    itemCount: emailList.length,
+    nextChecked: checked,
+    useRange: isShiftPressed.value,
+    isSelectable: (itemIndex) => {
+      if (!checked || emailList[itemIndex].checked) return true;
+      if (selectedCount >= MAX_SELECT_COUNT) return false;
+      selectedCount++;
+      return true;
+    },
+  });
+
+  result.indexes.forEach(itemIndex => {
+    emailList[itemIndex].checked = result.nextChecked;
+  });
+  emailSelectionAnchorIndex.value = result.nextAnchorIndex;
 }
 
 // 获取选中的邮件列表id
@@ -811,6 +859,7 @@ function getEmailList(refresh = false) {
     emailId = 0
     loading.value = true
     scrollTop = 0
+    emailSelectionAnchorIndex.value = null;
   }
 
   if (emailList.length === 0) {
@@ -887,6 +936,7 @@ function refresh() {
 function refreshList() {
   checkAll.value = false;
   isIndeterminate.value = false;
+  emailSelectionAnchorIndex.value = null;
   getEmailList(true);
 }
 
