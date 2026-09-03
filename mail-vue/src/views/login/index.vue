@@ -14,37 +14,51 @@
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
         <div v-show="show === 'login'">
-          <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
-                    type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
-            <template #append v-if="!hideLoginDomain">
-              <div @click.stop="openSelect">
-                <el-select
-                    v-if="show === 'login'"
-                    ref="mySelect"
-                    v-model="suffix"
-                    :placeholder="$t('select')"
-                    class="select"
-                >
-                  <el-option
-                      v-for="item in domainList"
-                      :key="item"
-                      :label="item"
-                      :value="item"
-                  />
-                </el-select>
-                <div style="color: var(--el-text-color-primary)">
-                  <span>{{ suffix }}</span>
-                  <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
+          <template v-if="pocketIdProvider">
+            <el-button class="btn" type="primary" @click="oauthLogin(pocketIdProvider.key)">
+              <Icon :icon="pocketIdProvider.icon" width="18" height="18" style="margin-right: 10px" />
+              {{ $t('pocketIdLogin') }}
+            </el-button>
+            <button class="password-login-toggle" type="button"
+                    :aria-expanded="showPasswordLogin" aria-controls="password-login-form"
+                    @click="showPasswordLogin = !showPasswordLogin">
+              {{ showPasswordLogin ? $t('hidePasswordLogin') : $t('passwordLogin') }}
+            </button>
+          </template>
+          <div id="password-login-form" v-show="!pocketIdProvider || showPasswordLogin"
+               :class="{ 'password-login-form': pocketIdProvider }">
+            <el-input :class="!hideLoginDomain ? 'email-input' : ''" v-model="form.email"
+                      type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
+              <template #append v-if="!hideLoginDomain">
+                <div @click.stop="openSelect">
+                  <el-select
+                      v-if="show === 'login'"
+                      ref="mySelect"
+                      v-model="suffix"
+                      :placeholder="$t('select')"
+                      class="select"
+                  >
+                    <el-option
+                        v-for="item in domainList"
+                        :key="item"
+                        :label="item"
+                        :value="item"
+                    />
+                  </el-select>
+                  <div style="color: var(--el-text-color-primary)">
+                    <span>{{ suffix }}</span>
+                    <Icon class="setting-icon" icon="mingcute:down-small-fill" width="20" height="20"/>
+                  </div>
                 </div>
-              </div>
-            </template>
-          </el-input>
-          <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
-          </el-input>
-          <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
-          >{{ $t('loginBtn') }}
-          </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
+              </template>
+            </el-input>
+            <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
+            </el-input>
+            <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
+            >{{ $t('loginBtn') }}
+            </el-button>
+          </div>
+          <el-button v-for="p in secondaryOauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
             {{ p.label }}
@@ -96,7 +110,7 @@
           <el-button class="btn" style="margin: 0" type="primary" @click="submitRegister" :loading="registerLoading"
           >{{ $t('regBtn') }}
           </el-button>
-          <el-button v-for="p in oauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
+          <el-button v-for="p in secondaryOauthProviders" :key="p.key" class="btn" style="margin-top: 10px" @click="oauthLogin(p.key)">
             <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18" style="margin-right: 10px" />
             <Icon v-else :icon="p.icon" width="18" height="18" style="margin-right: 10px" />
             {{ p.label }}
@@ -187,6 +201,7 @@ const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
+const showPasswordLogin = ref(false)
 
 const oauthKeys = ['linuxdo', 'github', 'google', 'pocketId']
 
@@ -200,13 +215,16 @@ const oauthProvider = computed(() => {
 
 const oauthProviders = computed(() => {
   const allProviders = [
+    { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' },
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
     { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
     { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
-    { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' },
   ]
   return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
 })
+
+const pocketIdProvider = computed(() => oauthProviders.value.find(provider => provider.key === 'pocketId'))
+const secondaryOauthProviders = computed(() => oauthProviders.value.filter(provider => provider.key !== 'pocketId'))
 
 const bindForm = reactive({
   email: '',
@@ -717,6 +735,26 @@ function submitRegister() {
       color: var(--login-switch-color);
       cursor: pointer;
     }
+  }
+
+  .password-login-toggle {
+    display: block;
+    margin: 14px auto 0;
+    padding: 4px 8px;
+    border: 0;
+    color: var(--form-desc-color);
+    background: transparent;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--el-color-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  .password-login-form {
+    margin-top: 18px;
   }
 
   :deep(.el-input__wrapper) {
