@@ -433,7 +433,12 @@
                 </div>
                 <div class="forward">
                   <span>{{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}</span>
-                  <el-button class="opt-button" size="small" type="primary" @click="openOauthSetting(p)">
+                  <el-button v-if="p.key === 'pocketId' && setting.pocketIdSwitch === 0"
+                             class="opt-button" size="small" type="primary" :title="$t('bindPocketId')"
+                             @click="bindPocketId">
+                    <Icon icon="material-symbols:link" width="18" height="18"/>
+                  </el-button>
+                  <el-button v-else-if="p.key !== 'pocketId'" class="opt-button" size="small" type="primary" @click="openOauthSetting(p)">
                     <Icon icon="fluent:settings-48-regular" width="18" height="18"/>
                   </el-button>
                 </div>
@@ -948,6 +953,7 @@ import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
 import axios from "axios";
+import {oauthPocketIdBindAuthorize} from "@/request/ouath.js";
 
 defineOptions({
   name: 'sys-setting'
@@ -1008,6 +1014,7 @@ const turnstileForm = reactive({
 })
 
 const oauthPlatforms = [
+  { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' },
   { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
   { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
   { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
@@ -1569,6 +1576,16 @@ function openOauthSetting(p) {
   oauthForm.clientSecret = setting.value[p.key + 'ClientSecret'] || ''
   oauthForm.switch = setting.value[p.key + 'Switch'] ?? 1
   oauthSettingShow.value = true
+}
+
+function bindPocketId() {
+  const redirectUri = window.location.origin + '/login'
+  sessionStorage.setItem('oauthProvider', 'pocketId')
+  oauthPocketIdBindAuthorize(redirectUri).then(({url}) => {
+    window.location.href = url
+  }).catch(() => {
+    sessionStorage.removeItem('oauthProvider')
+  })
 }
 
 function saveOauth() {

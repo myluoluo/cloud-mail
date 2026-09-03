@@ -89,6 +89,7 @@ const settingService = {
 		settingRow.tgBotToken = settingRow.tgBotToken ? `${settingRow.tgBotToken.slice(0, 20)}******` : null;
 		settingRow.hasR2 = !!c.env.r2
 		settingRow.hasCfEmail = !!c.env.email
+		settingRow.pocketIdSwitch = c.env.POCKET_ID_CLIENT_ID && c.env.POCKET_ID_CLIENT_SECRET && c.env.POCKET_ID_ISSUER ? 0 : 1
 
 		let regVerifyOpen = false
 		let addVerifyOpen = false
@@ -225,6 +226,7 @@ const settingService = {
 			githubSwitch: settingRow.githubSwitch,
 			googleClientId: settingRow.googleClientId,
 			googleSwitch: settingRow.googleSwitch,
+			pocketIdSwitch: settingRow.pocketIdSwitch,
 			minEmailPrefix: settingRow.minEmailPrefix,
 			projectLink: settingRow.projectLink
 		};

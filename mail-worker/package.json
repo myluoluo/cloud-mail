@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "wrangler dev --config wrangler-dev.toml",
+		"test:unit": "vitest run --config vitest.unit.config.js",
 		"test": "wrangler deploy --config wrangler-test.toml",
 		"deploy": "wrangler deploy",
 		"start": "wrangler dev"

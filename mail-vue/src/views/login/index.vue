@@ -167,7 +167,14 @@ import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {
+  oauthBindUser,
+  oauthGithubLogin,
+  oauthGoogleLogin,
+  oauthLinuxDoLogin,
+  oauthPocketIdAuthorize,
+  oauthPocketIdLogin
+} from "@/request/ouath.js";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -181,12 +188,13 @@ const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
 
-const oauthKeys = ['linuxdo', 'github', 'google']
+const oauthKeys = ['linuxdo', 'github', 'google', 'pocketId']
 
 const oauthProvider = computed(() => {
+  const fromStore = sessionStorage.getItem('oauthProvider')
+  if (fromStore === 'pocketId') return fromStore
   const fromState = route.query.state
   if (oauthKeys.includes(fromState)) return fromState
-  const fromStore = sessionStorage.getItem('oauthProvider')
   return oauthKeys.includes(fromStore) ? fromStore : null
 })
 
@@ -195,6 +203,7 @@ const oauthProviders = computed(() => {
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
     { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
     { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
+    { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' },
   ]
   return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
 })
@@ -286,13 +295,23 @@ const getEmailName = (email) => {
 }
 
 function oauthLogin(provider) {
-  const clientId = settingStore.settings[provider + 'ClientId']
-  const redirectUri = encodeURIComponent(window.location.origin + '/login')
+  const redirectUri = window.location.origin + '/login'
   sessionStorage.setItem('oauthProvider', provider)
+  if (provider === 'pocketId') {
+    oauthPocketIdAuthorize(redirectUri).then(({url}) => {
+      window.location.href = url
+    }).catch(() => {
+      sessionStorage.removeItem('oauthProvider')
+    })
+    return
+  }
+
+  const clientId = settingStore.settings[provider + 'ClientId']
+  const encodedRedirectUri = encodeURIComponent(redirectUri)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&scope=user:email&state=${provider}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodedRedirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
   }
   window.location.href = authorizeUrls[provider]
 }
@@ -301,6 +320,7 @@ const loginFns = {
   linuxdo: oauthLinuxDoLogin,
   github: oauthGithubLogin,
   google: oauthGoogleLogin,
+  pocketId: (code, redirectUri, state) => oauthPocketIdLogin(code, state, redirectUri),
 }
 
 oauthGetUser();
@@ -309,6 +329,7 @@ async function oauthGetUser() {
 
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
+  const state = params.get('state')
   if (!code || !oauthProvider.value) return
 
   const provider = oauthProvider.value
@@ -316,7 +337,7 @@ async function oauthGetUser() {
   sessionStorage.removeItem('oauthProvider')
   window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
-  loginFns[provider](code, window.location.origin + '/login').then(data => {
+  loginFns[provider](code, window.location.origin + '/login', state).then(data => {
 
     bindForm.oauthUserId = data.userInfo.oauthUserId;
 

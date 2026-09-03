@@ -360,6 +360,7 @@ const zh = {
     searchSender: '搜索发件人',
     userEmail: '用户邮箱',
     oauthSetting: 'OAuth',
+    bindPocketId: '绑定 Pocket ID',
     clientId: '客户端 ID',
     clientSecret: '客户端密钥',
     notOwner: '基础邮箱不属于您',

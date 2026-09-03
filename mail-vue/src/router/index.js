@@ -109,6 +109,12 @@ router.beforeEach((to, from, next) => {
         return
     }
 
+    const pocketIdCallback = sessionStorage.getItem('oauthProvider') === 'pocketId' && to.query.code && to.query.state
+    if (token && to.path.startsWith('/login') && pocketIdCallback) {
+        loadBackground(next)
+        return
+    }
+
     if (token && to.path.startsWith('/login')) {
         return next(from.path)
     }

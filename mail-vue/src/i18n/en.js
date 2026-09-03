@@ -360,6 +360,7 @@ const en = {
     searchSender: 'Search by Sender',
     userEmail: 'Email Address',
     oauthSetting: 'OAuth',
+    bindPocketId: 'Link Pocket ID',
     clientId: 'Client ID',
     clientSecret: 'Client Secret',
     notOwner: 'Base email does not belong to you',
