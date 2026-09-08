@@ -172,7 +172,7 @@ const zh = {
     codeRecognitionRulesDesc: '只识别包含以下信息的邮件，为空识别全部',
     oss: '对象存储',
     osDomain: '访问域名',
-    ossDomainDesc: '如果是KV存储不要填',
+    ossDomainDesc: 'KV / S3 可留空（附件由本站代理下载）；仅在使用 R2/S3 公有访问域名或 CDN 时再填写',
     emailPush: '邮件推送',
     tgBot: 'Telegram 机器人',
     disable: '关闭',

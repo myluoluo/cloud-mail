@@ -172,7 +172,7 @@ const en = {
     codeRecognitionRulesDesc: 'Only recognize emails containing the following info. Empty means all.',
     oss: 'Object Storage',
     osDomain: 'Domain',
-    ossDomainDesc: 'Leave empty if using KV storage.',
+    ossDomainDesc: 'Leave empty for KV or S3 (this site proxies downloads). Fill in only when using a public R2/S3 CDN domain.',
     emailPush: 'Email Push',
     tgBot: 'Telegram Bot',
     disable: 'Disable',
