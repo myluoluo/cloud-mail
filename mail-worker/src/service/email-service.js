@@ -1139,9 +1139,11 @@ const emailService = {
 			};
 		}
 
-		await attService.removeByEmailIds(c, emailIds);
-		await starService.removeByEmailIds(c, emailIds);
-		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
+		// D1 单条查询最多 100 个绑定参数，沿用自动清理的 95 封批次。
+		const batchSize = 95;
+		for (let i = 0; i < emailIds.length; i += batchSize) {
+			await this.physicsDelete(c, { emailIds: emailIds.slice(i, i + batchSize).join(',') });
+		}
 
 		return {
 			matchedCount: emailIds.length,
