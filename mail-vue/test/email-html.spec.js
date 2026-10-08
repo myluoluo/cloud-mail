@@ -121,6 +121,26 @@ describe('buildEmailContent 清洗不可信邮件正文', () => {
         expect(html).not.toMatch(/formaction|<input|<button/i)
     })
 
+    it('CSS 转义解码出的 </style> 不会突围成标记', () => {
+        const payload = '<style>.x{content:"\\3C/style\\3E\\3Cimg src\\3Dx onerror\\3Dalert(1)\\3E"}</style><p>ok</p>'
+        const {html} = render(payload)
+
+        // 组件会把 html 交给 innerHTML，这里同样再解析一次验证不会产生元素
+        const roundTrip = document.createElement('div')
+        roundTrip.innerHTML = html
+
+        expect(roundTrip.querySelectorAll('img')).toHaveLength(0)
+        expect(roundTrip.textContent).toContain('ok')
+    })
+
+    it('area 链接同样被加固', () => {
+        const {html} = render('<map name="m"><area href="https://evil.example/x" target="_top"></map>')
+
+        expect(html).not.toMatch(/target="_top"/i)
+        expect(html).toContain('target="_blank"')
+        expect(html).toContain('rel="noopener noreferrer nofollow"')
+    })
+
     it('拦截 srcset 中的远程候选', () => {
         const {html, blockedRemoteCount} = render('<img src="/attachments/b.png" srcset="/attachments/b.png 1x, https://track.example/b2.png 2x">')
 

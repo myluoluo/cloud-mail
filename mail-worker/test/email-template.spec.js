@@ -49,6 +49,15 @@ describe('emailHtmlTemplate', () => {
 		expect(html).not.toMatch(/<form|<input|<button/i);
 	});
 
+	it('去掉会自行加载的框架与模板标签', () => {
+		const html = embeddedHtml(emailHtmlTemplate(
+			'<frameset><frame src="https://track.example/frame"></frameset><applet code="x"></applet><template><img src="https://track.example/t.png"></template><p>ok</p>',
+			'oss.example.com'));
+
+		expect(html).toContain('<p>ok</p>');
+		expect(html).not.toMatch(/<frameset|<frame|<applet|<template|<img/i);
+	});
+
 	it('链接统一改为另开窗口，邮件里的 target 被覆盖', () => {
 		const html = embeddedHtml(emailHtmlTemplate(
 			'<a href="https://evil.example/phish" target="_top">查看</a><map><area href="https://evil.example/x" target="_parent"></map>',

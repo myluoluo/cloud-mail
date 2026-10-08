@@ -66,6 +66,12 @@ function normalizeDeclarationList(css) {
     return element.style.cssText
 }
 
+// CSS 转义被解码后可能剩出字面 "</style>"，写回 raw-text 元素前必须断开，
+// 否则序列化再解析时样式會被提前闭合（CSS 里 \/ 与 / 等价，语义不变）
+function escapeRawText(css) {
+    return css.replace(/<\/style/gi, '<\\/style')
+}
+
 function resolveOrigin(url) {
     try {
         const absolute = url.startsWith('//') ? `${window.location.protocol}${url}` : url
@@ -162,11 +168,12 @@ export function buildEmailContent(rawHtml, options = {}) {
     }
     for (const styleElement of holder.querySelectorAll('style')) {
         const result = normalizeCss(styleElement.textContent, policy, normalizeStyleSheet)
-        if (result.css !== styleElement.textContent) styleElement.textContent = result.css
+        const css = escapeRawText(result.css)
+        if (css !== styleElement.textContent) styleElement.textContent = css
         blockedRemoteCount += result.blocked
     }
 
-    for (const link of holder.querySelectorAll('a[href]')) {
+    for (const link of holder.querySelectorAll('a[href], area[href]')) {
         link.setAttribute('target', '_blank')
         link.setAttribute('rel', 'noopener noreferrer nofollow')
     }

@@ -1,13 +1,88 @@
 import { parseHTML } from 'linkedom';
 import domainUtils from '../utils/domain-uitls';
 
-export default function emailHtmlTemplate(html, domain) {
+// 正文放进完全隔离的 iframe：不给同源身份，也不允许执行脚本与提交表单，
+// 即便邮件里有活动内容也无法触及页面与接口；链接统一走 allow-popups 另开窗口。
+const SANDBOX = 'allow-popups allow-popups-to-escape-sandbox';
+
+// 邮件文档的基础排版，与前端 ShadowHtml 的外壳保持一致
+const SHELL_STYLE = `
+        html {
+            background: #FFFFFF;
+        }
+
+        body {
+            margin: 0;
+            min-width: 100%;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #13181D;
+            word-break: break-word;
+        }
+
+        h1, h2, h3, h4 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        a {
+            text-decoration: none;
+            color: #0E70DF;
+        }
+
+        img:not(table img) {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+`;
+
+// 脚本与表单提交由沙箱拦下，这里再去掉会自行发起请求、跳转或伪装凭证输入的标签
+const UNWANTED_SELECTOR = 'script, link, meta, base, iframe, frame, frameset, object, embed, applet, template, form, input, button, select, option, textarea, label, fieldset, legend';
+
+const LINK_REL = 'noopener noreferrer nofollow';
+
+// linkedom 只在输入自带文档骨架时才给出规范的 head/body，其余需要补齐再解析
+const DOCUMENT_ROOTS = ['html', 'head', 'body'];
+
+function parseMailDocument(html) {
 
 	const { document } = parseHTML(html);
-	document.querySelectorAll('script').forEach(script => script.remove());
-	html = document.toString();
-	html = html.replace(/{{domain}}/g, domainUtils.toOssDomain(domain) + '/');
-	const safeHtmlJson = JSON.stringify(html).replace(/</g, '\\u003C');
+
+	if (DOCUMENT_ROOTS.includes(document.documentElement?.localName)) return document;
+
+	return parseHTML(`<html><head></head><body>${html}</body></html>`).document;
+}
+
+function prepareDocument(html) {
+
+	const document = parseMailDocument(html);
+
+	document.querySelectorAll(UNWANTED_SELECTOR).forEach(node => node.remove());
+	// 统一另开窗口，邮件里的 target 不能把查看页或 iframe 导航走
+	document.querySelectorAll('a[href], area[href]').forEach(link => {
+		link.setAttribute('target', '_blank');
+		link.setAttribute('rel', LINK_REL);
+	});
+
+	const style = document.createElement('style');
+	style.textContent = SHELL_STYLE;
+	document.head.insertBefore(style, document.head.firstChild);
+
+	const page = document.toString();
+
+	// 片段式邮件没有 doctype，补一个以免 iframe 落入怪异模式
+	return page.trimStart().toLowerCase().startsWith('<!doctype') ? page : `<!DOCTYPE html>\n${page}`;
+}
+
+export default function emailHtmlTemplate(html, domain) {
+
+	const page = prepareDocument(html).replace(/{{domain}}/g, domainUtils.toOssDomain(domain) + '/');
+	const safeHtmlJson = JSON.stringify(page).replace(/</g, '\\u003C');
 
 	return `<!DOCTYPE html>
 <html lang='en' >
@@ -15,123 +90,27 @@ export default function emailHtmlTemplate(html, domain) {
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <style>
-        * {
-            box-sizing: border-box;
+        html, body {
             margin: 0;
             padding: 0;
+            height: 100%;
             background: #FFF;
         }
 
-        .content-box {
-        		padding: 15px 10px;
+        #mail-frame {
+            display: block;
             width: 100%;
             height: 100%;
-            overflow: auto; /* 改为 auto 允许滚动 */
-            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-
-        .content-html {
-            width: 100%;
-            height: 100%;
+            border: 0;
+            background: #FFF;
         }
     </style>
 </head>
 <body>
-    <div class='content-box'>
-        <div id='container' class='content-html'></div>
-    </div>
+    <iframe id='mail-frame' sandbox='${SANDBOX}'></iframe>
 
     <script>
-
-        function renderHTML(html) {
-            const container = document.getElementById('container');
-            const shadowRoot = container.attachShadow({ mode: 'open' });
-
-            // 提取 <body> 的 style 属性
-            const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
-            const bodyStyleMatch = html.match(bodyStyleRegex);
-            const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
-
-            // 移除 <body> 标签
-            const cleanedHtml = html.replace(/<\\/?body[^>]*>/gi, '');
-
-            // 渲染内容
-            shadowRoot.innerHTML = \`
-                <style>
-                    :host {
-                        all: initial;
-                        width: 100%;
-                        height: 100%;
-                        font-family: Inter, -apple-system, BlinkMacSystemFont,
-                                    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                        font-size: 14px;
-                        line-height: 1.5;
-                        color: #13181D;
-                        word-break: break-word;
-                        overflow: auto; /* 添加滚动 */
-                    }
-
-                    h1, h2, h3, h4 {
-                        font-size: 18px;
-                        font-weight: 700;
-                    }
-
-                    p {
-                        margin: 0;
-                    }
-
-                    a {
-                        text-decoration: none;
-                        color: #0E70DF;
-                    }
-
-                    .shadow-content {
-                        background: #FFFFFF;
-                        width: fit-content;
-                        height: fit-content;
-                        min-width: 100%;
-                        \${bodyStyle ? bodyStyle : ''} /* 注入 body 的 style */
-                    }
-
-                    img:not(table img) {
-                        max-width: 100% !important;
-                        height: auto !important;
-                    }
-                </style>
-                <div class="shadow-content">
-                    \${cleanedHtml}
-                </div>
-            \`;
-
-            // 自动缩放
-            autoScale(shadowRoot, container);
-        }
-
-        function autoScale(shadowRoot, container) {
-
-            if (!shadowRoot || !container) return;
-
-            const parent = container;
-            const shadowContent = shadowRoot.querySelector('.shadow-content');
-
-            if (!shadowContent) return;
-
-            const parentWidth = parent.offsetWidth;
-            const childWidth = shadowContent.scrollWidth;
-
-            if (childWidth === 0) return;
-
-            const scale = parentWidth / childWidth;
-
-            const hostElement = shadowRoot.host;
-            hostElement.style.zoom = scale;
-        }
-
-        // 使用示例
-        const exampleHtml = ${safeHtmlJson};
-
-        // 渲染HTML
-        renderHTML(exampleHtml);
+        document.getElementById('mail-frame').srcdoc = ${safeHtmlJson};
     </script>
 </body>
 </html>`
