@@ -42,6 +42,7 @@ crons = ["0 * * * *"]	#每小时执行；resetDaySendCount 仅在 UTC 0 点生�
 #domain = []				#邮件域名可可配置多个 示例: ["example1.com","example2.com"]
 #admin = ""					#管理员的邮箱	示例: admin@example.com
 #jwt_secret = ""			#jwt令牌的密钥,随便填一串字符串
+#resend_webhook_secret = ""		#Resend webhook 签名密钥(whsec_开头,控制台 webhook 详情页获取),用于校验 POST /api/webhooks 入站事件;未配置时该端点拒绝所有请求。建议在 Cloudflare 后台设置为加密变量,不要提交到仓库
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"

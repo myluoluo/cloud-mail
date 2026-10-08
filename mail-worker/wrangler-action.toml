@@ -44,6 +44,7 @@ domain = "${DOMAIN}"
 admin = "${ADMIN}"
 jwt_secret = "${JWT_SECRET}"
 project_link = "${PROJECT_LINK}"
+#resend_webhook_secret 不要在 CI 中注入：同 POCKET_ID_* 一样只在 Cloudflare 后台设置，靠 keep_vars = true 保留
 
 [build]
 command = "pnpm --prefix ../mail-vue install && pnpm --prefix ../mail-vue run build"
