@@ -2,6 +2,17 @@ import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
 
+// 公开对象键前缀白名单：/api/oss/*、/oss/ 与 /static/、/attachments/ 只允许读这些前缀。
+// 系统数据 KV 键（setting:、auth-uid:、public_key: 等）都不带这两个前缀，前缀即完整边界：
+// KV/R2/S3 均为扁平键空间、不做路径解析，而对象键本身也不是 URI 编码串
+// （附件后缀直接取自邮件文件名，可能含 '%'、':' 等字符），因此这里不能对键做解码。
+const PUBLIC_OBJECT_PREFIXES = ['static/', 'attachments/'];
+
+function isPublicObjectKey(key) {
+	return typeof key === 'string'
+		&& PUBLIC_OBJECT_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
 const r2Service = {
 
 	async storageType(c) {
@@ -41,6 +52,9 @@ const r2Service = {
 	},
 
 	async getObj(c, key) {
+		if (!isPublicObjectKey(key)) {
+			return null;
+		}
 		const storageType = await this.storageType(c);
 
 		if (storageType === 'KV') {
@@ -61,6 +75,9 @@ const r2Service = {
 	 * can serve KV / R2 / S3 the same way.
 	 */
 	async toObjResp(c, key) {
+		if (!isPublicObjectKey(key)) {
+			return null;
+		}
 		try {
 			const storageType = await this.storageType(c);
 
