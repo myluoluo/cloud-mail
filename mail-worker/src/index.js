@@ -17,6 +17,10 @@ export default {
 			return app.fetch(req, env, ctx);
 		}
 
+		if (url.pathname.startsWith('/telegram/')) {
+			return app.fetch(req, env, ctx);
+		}
+
 		if (url.pathname.startsWith('/oss/')) {
 			const key = url.pathname.slice('/oss/'.length);
 			const resp = await r2Service.toObjResp({ env }, key);
