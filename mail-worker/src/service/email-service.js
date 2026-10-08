@@ -512,6 +512,7 @@ const emailService = {
 		}
 
 		let messageId = null;
+		let sentBatches = 0;
 
 		try {
 
@@ -519,11 +520,18 @@ const emailService = {
 				const result = await c.env.email.send({ ...sendForm, to: [...batch] });
 				//分批发送时只保留第一封的消息id
 				messageId = messageId || result?.messageId;
+				sentBatches++;
 			}
 
 		} catch (e) {
-			//cf发信失败抛出的是普通异常，统一转换成和resend一样的结构
-			return { error: { message: e.message } };
+			//cf发信失败抛出的是普通异常，统一转换成和resend一样的结构；
+			//抛出的不一定是 Error，统一取可读信息
+			const reason = e instanceof Error ? e.message : String(e ?? '');
+			//前面批次可能已经发出，如实告知已成功批次数，避免直接全量重发导致重复投递
+			const message = sentBatches > 0
+				? t('cfEmailPartialFail', { sent: sentBatches, reason })
+				: reason;
+			return { error: { message } };
 		}
 
 		return {
