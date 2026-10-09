@@ -14,6 +14,9 @@ import emailHtmlTemplate from '../template/email-html';
 import verifyUtils from '../utils/verify-utils';
 import domainUtils from "../utils/domain-uitls";
 
+// Quick View 预览链接从签发起最多有效 3 天。
+const EMAIL_PREVIEW_TTL_SECONDS = 3 * 24 * 60 * 60;
+
 const telegramService = {
 
 	async getEmailContent(c, params) {
@@ -21,8 +24,10 @@ const telegramService = {
 		const { token } = params
 
 		const result = await jwtUtils.verifyToken(c, token);
+		const now = Math.floor(Date.now() / 1000);
 
-		if (!result) {
+		// 旧链接没有 exp，仍按签发时间执行相同的 3 天期限。
+		if (!result || !Number.isInteger(result.iat) || now >= result.iat + EMAIL_PREVIEW_TTL_SECONDS) {
 			return emailTextTemplate('Access denied')
 		}
 
@@ -49,7 +54,7 @@ const telegramService = {
 
 		const tgChatIds = tgChatId.split(',');
 
-		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId })
+		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId }, EMAIL_PREVIEW_TTL_SECONDS)
 
 		const baseDomain = this.resolveBaseDomain(c, customDomain);
 		const webAppUrl = `${baseDomain}/api/telegram/getEmail/${jwtToken}`;
