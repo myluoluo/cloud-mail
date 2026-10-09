@@ -100,6 +100,17 @@ router.beforeEach((to, from, next) => {
 
     const token = localStorage.getItem('token')
 
+    if (!token) {
+        let target = to.name === 'content' ? to : from
+        // 启动时凭证过期可能先跳登录，此时路由还没有上一页。
+        if (!target.name) {
+            target = router.resolve(window.location.pathname + window.location.search)
+        }
+        if (target.name === 'content' && typeof target.query.id === 'string') {
+            sessionStorage.setItem('mailRedirectId', target.query.id)
+        }
+    }
+
     if (!token && !to.path.startsWith('/login')) {
         return next({name: 'login'})
     }

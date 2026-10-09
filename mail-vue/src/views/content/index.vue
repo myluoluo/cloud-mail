@@ -1,6 +1,6 @@
 <template>
-  <div class="box">
-    <div class="header-actions">
+  <div class="box" v-loading="loading">
+    <div class="header-actions" v-if="email.emailId">
       <Icon class="icon" icon="material-symbols-light:arrow-back-ios-new" width="20" height="20" @click="handleBack"/>
       <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-left" width="22" height="22" @click="navigate(-1)"/>
       <Icon v-if="hasNavigationContext" class="icon nav-icon" icon="material-symbols-light:chevron-right" width="22" height="22" @click="navigate(1)"/>
@@ -14,8 +14,8 @@
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openReplyAll" icon="mdi:reply-all-outline" width="21" height="21" :title="$t('replyAll')" />
       <Icon class="icon" v-if="emailStore.contentData.showReply" v-perm="'email:send'"  @click="openForward" icon="iconoir:arrow-up-right" width="20" height="20" />
     </div>
-    <div></div>
-    <el-scrollbar class="scrollbar">
+    <el-alert v-if="loadError" :title="loadError" type="error" :closable="false" show-icon />
+    <el-scrollbar class="scrollbar" v-if="email.emailId">
       <div class="container">
         <div class="email-title">
           {{ email.subject }}
@@ -82,9 +82,9 @@
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted} from "vue";
-import {useRouter} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {emailDelete, emailRead, emailUnread} from "@/request/email.js";
+import {emailDetail, emailDelete, emailRead, emailUnread} from "@/request/email.js";
 import {Icon} from "@iconify/vue";
 import {useEmailStore} from "@/store/email.js";
 import {useAccountStore} from "@/store/account.js";
@@ -98,12 +98,17 @@ import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {useUserStore} from "@/store/user.js";
 
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const accountStore = useAccountStore();
 const emailStore = useEmailStore();
+const userStore = useUserStore();
 const router = useRouter()
+const route = useRoute()
+const loading = ref(false)
+const loadError = ref('')
 const email = computed(() => emailStore.contentData.email || {
   emailId: 0,
   attList: [],
@@ -121,6 +126,35 @@ watch(() => accountStore.currentAccountId, () => {
 })
 
 const readRequesting = new Set()
+
+watch(() => route.query.id, async (id, _, onCleanup) => {
+  loading.value = false
+  loadError.value = ''
+  if (id == null) return
+
+  let active = true
+  onCleanup(() => { active = false })
+  emailStore.contentData = {email: null, delType: null, showStar: false, showReply: false, showUnread: false}
+  emailStore.currentEmailList = []
+  loading.value = true
+  try {
+    const detail = await emailDetail(id)
+    if (!active) return
+    const ownMail = detail.userId === userStore.user.userId
+    emailStore.detailMap[detail.emailId] = detail
+    emailStore.contentData = {
+      email: detail,
+      delType: ownMail ? 'logic' : 'physics',
+      showStar: ownMail,
+      showReply: ownMail,
+      showUnread: ownMail,
+    }
+  } catch (error) {
+    if (active) loadError.value = error.message || t('reqFailErrorMsg')
+  } finally {
+    if (active) loading.value = false
+  }
+}, {immediate: true})
 
 function tryMarkRead() {
   if (!emailStore.contentData.showUnread) return

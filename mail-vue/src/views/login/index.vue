@@ -488,7 +488,9 @@ async function saveToken(token) {
   routers.forEach(routerData => {
     router.addRoute('layout', routerData);
   });
-  await router.replace({name: 'layout'})
+  const mailId = sessionStorage.getItem('mailRedirectId')
+  await router.replace(mailId ? {name: 'content', query: {id: mailId}} : {name: 'layout'})
+  sessionStorage.removeItem('mailRedirectId')
   uiStore.showNotice()
   oauthLoading.value = false;
   bindLoading.value = false;

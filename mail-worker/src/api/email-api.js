@@ -9,6 +9,11 @@ app.get('/email/list', async (c) => {
 	return c.json(result.ok(data));
 });
 
+app.get('/email/detail', async (c) => {
+	const data = await emailService.detail(c, c.req.query(), userContext.getUserId(c));
+	return c.json(result.ok(data));
+});
+
 app.get('/email/latest', async (c) => {
 	const list = await emailService.latest(c, c.req.query(), userContext.getUserId(c));
 	return c.json(result.ok(list));
@@ -38,4 +43,3 @@ app.put('/email/unread', async (c) => {
 	await emailService.unread(c, await c.req.json(), userContext.getUserId(c));
 	return c.json(result.ok());
 })
-

@@ -25,6 +25,8 @@ import { att } from '../entity/att';
 import telegramService from './telegram-service';
 import verifyUtils from '../utils/verify-utils';
 import constant from '../const/constant';
+import permService from './perm-service';
+import userContext from '../security/user-context';
 
 const emailService = {
 
@@ -141,6 +143,31 @@ const emailService = {
 		}
 
 		return { list, total: totalRow.total, latestEmail };
+	},
+
+	async detail(c, params, userId) {
+		const emailId = Number(params.emailId);
+		if (!Number.isSafeInteger(emailId) || emailId <= 0) {
+			throw new BizError(t('invalidEmailId'), 400);
+		}
+
+		const emailRow = await this.selectById(c, emailId);
+		if (!emailRow) {
+			throw new BizError(t('emailNotExist'), 404);
+		}
+
+		if (emailRow.userId !== userId && userContext.getUser(c).email !== c.env.admin) {
+			const permKeys = await permService.userPermKeys(c, userId);
+			if (!permKeys.includes('all-email:query')) {
+				throw new BizError(t('emailNotExist'), 404);
+			}
+		}
+
+		const starRow = await orm(c).select({ starId: star.starId }).from(star)
+			.where(and(eq(star.emailId, emailId), eq(star.userId, userId))).get();
+		emailRow.isStar = starRow ? 1 : 0;
+		await this.emailAddAtt(c, [emailRow]);
+		return emailRow;
 	},
 
 	toListText(item) {
