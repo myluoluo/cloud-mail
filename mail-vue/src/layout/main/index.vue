@@ -1,7 +1,8 @@
 <template>
   <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
     <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
-    <account  :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
+    <account :inert="!(accountShow && hasPerm('account:query'))" :aria-hidden="!(accountShow && hasPerm('account:query'))"
+             :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
     <router-view class="main-view" v-slot="{ Component,route }">
       <keep-alive :include="['email','all-email','send','sys-setting','star','user','role','analysis','reg-key','draft']">
         <component :is="Component" :key="route.name"/>
@@ -124,7 +125,7 @@ const handleResize = () => {
 }
 
 .show {
-  transition: all 100ms;
+  transition: transform 240ms ease, opacity 240ms ease;
   @media (max-width: 767px) {
     position: fixed;
     z-index: 100;
@@ -133,7 +134,7 @@ const handleResize = () => {
 }
 
 .hide {
-  transition: all 100ms;
+  transition: transform 240ms ease, opacity 240ms ease;
   position: fixed;
   transform: translateX(-100%);
   opacity: 0;
@@ -146,22 +147,34 @@ const handleResize = () => {
 
 .main-box-show {
   display: grid;
-  grid-template-columns: 260px  1fr;
-  height: calc(100% - 60px);
+  grid-template-columns: 220px minmax(0, 1fr);
+  height: calc(100% - 80px);
   @media (max-width: 767px) {
     grid-template-columns: 1fr;
+    height: calc(100% - 72px);
   }
 }
 
 .main-box-hide {
   display: grid;
-  grid-template-columns: 1fr;
-  height: calc(100% - 60px);
+  grid-template-columns: minmax(0, 1fr);
+  height: calc(100% - 80px);
+  @media (max-width: 767px) {
+    height: calc(100% - 72px);
+  }
 }
 
 
 .main-view {
   background: var(--el-bg-color);
+  min-width: 0;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 12px;
+  animation: workspace-enter 320ms ease both;
+  @media (max-width: 767px) {
+    border: 0;
+    border-radius: 0;
+  }
 }
 
 

@@ -120,9 +120,6 @@
                            :showStatus="showStatus"
                            :showUserInfo="showUserInfo"
                            :type="type"/>
-            <div class="noLoading" v-else-if="item.expand === 'noMoreData'">
-              <div>{{ $t('noMoreData') }}</div>
-            </div>
           </template>
         </UseVirtualList>
       <skeletonBlock v-if="firstLoad && showFirstLoading"
@@ -420,9 +417,9 @@ const list = computed(() => {
 
 const itemHeight = computed(() => {
     if (props.type === 'all-email') {
-      return isMobile.value ? 132 : 65;
+      return isMobile.value ? 132 : 92;
     } else  {
-      return isMobile.value ? 83 : 48;
+      return isMobile.value ? 83 : 72;
     }
 })
 
@@ -450,19 +447,6 @@ watch(followLoading, (isFollowLoading) => {
     expandList.splice(index, 1);
   }
 });
-
-watch(noLoading, (isNoLoading) => {
-  if (isNoLoading) {
-    expandList.push({
-      emailId: 0,
-      expand: 'noMoreData'
-    })
-  } else {
-    const index = expandList.findIndex(item => item.expand === 'noMoreData')
-    expandList.splice(index, 1);
-  }
-})
-
 
 // 监听是否到达底部
 watch(() => arrivedState.bottom, (isBottom) => {
@@ -978,14 +962,6 @@ function loadData() {
     width: 100%;
   }
 
-  .noLoading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 15px 0 0 0;
-    color: var(--secondary-text-color);
-  }
-
   .follow-loading {
     height: 60px;
     display: flex;
@@ -1020,14 +996,14 @@ function loadData() {
 
 :deep(.email-row) {
   display: flex;
-  padding: 8px 0;
+  padding: 12px 0;
   justify-content: space-between;
   box-shadow: var(--header-actions-border);
   cursor: pointer;
   align-items: center;
   position: relative;
   transition: background 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-  height: 48px;
+  height: 72px;
   @media (max-width: 1366px) {
     height: 83px;
   }
@@ -1037,7 +1013,7 @@ function loadData() {
     user-select: none;
   }
   &.all-email {
-    height: 65px;
+    height: 92px;
     @media (max-width: 1366px) {
       height: 132px;
     }
@@ -1107,8 +1083,10 @@ function loadData() {
 
   .title {
     flex: 1;
+    min-width: 0;
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: 150px minmax(0, 1fr);
+    column-gap: 20px;
     @media (max-width: 1366px) {
       padding-right: 15px;
     }
@@ -1118,6 +1096,7 @@ function loadData() {
     }
 
     .email-sender {
+      align-items: center;
       color: var(--el-text-color-primary);
       display: grid;
       grid-template-columns: auto 1fr auto;
@@ -1166,7 +1145,7 @@ function loadData() {
 
       .phone-time {
         font-weight: normal;
-        font-size: 12px;
+        font-size: 13px;
         @media (min-width: 1367px) {
           display: none;
         }
@@ -1199,7 +1178,8 @@ function loadData() {
 
     .email-text {
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
       @media (max-width: 1366px) {
         grid-template-columns: 1fr;
       }
@@ -1240,7 +1220,8 @@ function loadData() {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        padding-left: 10px;
+        padding-left: 5px;
+        font-size: 13px;
         color: var(--email-scroll-content-color);
         @media (max-width: 1366px) {
           padding-left: 0;
@@ -1253,7 +1234,7 @@ function loadData() {
 
   .email-right {
     text-align: right;
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
     display: flex;
     padding-left: 15px;
@@ -1318,11 +1299,12 @@ function loadData() {
 }
 
 .header-actions {
+  height: 52px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 15px;
-  padding: 3px 15px;
+  padding: 10px 20px;
   box-shadow: var(--header-actions-border);
 
   .header-left {
@@ -1339,13 +1321,14 @@ function loadData() {
   .header-right {
     display: grid;
     grid-template-columns: auto auto;
-    align-items: start;
+    align-items: center;
     height: 100%;
     color: var(--el-text-color-primary);;
 
     .email-count {
       white-space: nowrap;
-      margin-top: 6px;
+      font-size: 13px;
+      color: var(--regular-text-color);
     }
   }
 
@@ -1355,7 +1338,6 @@ function loadData() {
   }
 
   .more-icon {
-    margin-top: 8px;
     margin-left: 15px;
   }
 }

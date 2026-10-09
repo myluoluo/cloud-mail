@@ -26,3 +26,5 @@ mail-vue/dist
 .wrangler
 .venv
 git-tools.js
+docker/.env
+docs/ui-redesign/shots/

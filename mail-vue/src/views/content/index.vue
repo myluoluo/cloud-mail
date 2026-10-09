@@ -352,7 +352,8 @@ const handleDelete = () => {
 }
 
 .header-actions {
-  padding: 9px 15px 8px;
+  height: 52px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -377,24 +378,26 @@ const handleDelete = () => {
 
 
 .scrollbar {
-  height: calc(100% - 38px);
+  height: calc(100% - 52px);
   width: 100%;
 }
 
 .container {
-  font-size: 14px;
-  padding-left: 20px;
-  padding-right: 20px;
-  padding-top: 10px;
+  font-size: 15px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 36px 40px;
   @media (max-width: 1023px) {
     padding-left: 15px;
     padding-right: 15px;
+    padding-top: 24px;
   }
 
   .email-title {
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 10px;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.5;
+    margin-bottom: 24px;
   }
 
   .htm-scrollbar {
@@ -482,7 +485,7 @@ const handleDelete = () => {
 
       border-bottom: 1px solid var(--light-border-color);
       margin-bottom: 20px;
-      padding-bottom: 8px;
+      padding-bottom: 20px;
       @media (max-width: 1024px) {
         margin-bottom: 15px;
       }
@@ -552,6 +555,8 @@ const handleDelete = () => {
 
 .email-text {
   font-family: inherit;
+  font-size: 15px;
+  line-height: 1.85;
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;

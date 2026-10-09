@@ -2,6 +2,8 @@
   <el-container class="layout">
     <el-aside
         class="aside"
+        :inert="!uiStore.asideShow"
+        :aria-hidden="!uiStore.asideShow"
         :class="uiStore.asideShow ? 'aside-show' : 'el-aside-hide'">
       <Aside />
     </el-aside>
@@ -56,14 +58,14 @@ onBeforeUnmount(() => {
   height: 100%;
   z-index: 100;
   transform: translateX(-100%);
-  transition: all 100ms ease;
+  transition: transform 240ms ease;
 }
 
 .aside-show {
   -webkit-box-shadow: var(--aside-right-border);
   box-shadow: var(--aside-right-border);
   transform: translateX(0);
-  transition: all 100ms ease;
+  transition: transform 240ms ease;
   z-index: 101;
   @media (max-width: 1025px) {
     position: fixed;
@@ -71,13 +73,13 @@ onBeforeUnmount(() => {
     left: 0;
     z-index: 101;
     height: 100%;
-    background: var(--el-bg-color);
+    background: var(--aside-backgound);
   }
 }
 
 .el-aside {
   width: auto;
-  transition: all 100ms ease;
+  transition: transform 240ms ease;
 }
 
 .layout {
@@ -91,19 +93,29 @@ onBeforeUnmount(() => {
 
 .main-container {
   min-height: 100%;
-  background: var(--el-bg-color);
+  background: var(--workspace-background);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .el-main {
-  padding: 0;
+  padding: 0 24px 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  @media (max-width: 767px) {
+    padding: 0;
+  }
 }
 
 .el-header {
-  background: var(--el-bg-color);
-  border-bottom: solid 1px var(--el-border-color);
-  padding: 0 0 0 0;
+  background: var(--workspace-background);
+  height: 80px;
+  flex-shrink: 0;
+  padding: 0;
+  @media (max-width: 767px) {
+    height: 72px;
+  }
 }
 
 .overlay-show {

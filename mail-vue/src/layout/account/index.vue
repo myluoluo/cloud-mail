@@ -1,6 +1,7 @@
 <template>
   <div class="account-box">
     <div class="head-opt">
+      <span class="mailbox-label">{{ $t('yourMailboxes') }}</span>
       <Icon v-perm="'account:add'" class="icon add" icon="ion:add-outline" width="23" height="23" @click="add"/>
       <Icon class="icon refresh" icon="ion:reload" width="18" height="18" @click="refresh"/>
     </div>
@@ -13,14 +14,19 @@
           </div>
           <div class="opt">
             <div class="send-email" @click.stop>
-              <Icon @click="setAllReceive(item)" v-if="!item.allReceive" icon="eva:email-fill" width="22" height="22" color="#fccb1a"/>
-              <Icon @click="setAllReceive(item)" v-else icon="flat-color-icons:folder" width="22" height="22" color="#23c4f1" />
+              <Icon @click="setAllReceive(item)" v-if="!item.allReceive" icon="mdi:email-outline" width="20" height="20" />
+              <Icon @click="setAllReceive(item)" v-else icon="fluent:mail-list-28-regular" width="20" height="20" />
             </div>
             <div class="settings" @click.stop>
-              <Icon icon="fluent-color:clipboard-24" width="22" height="22" @click.stop="copyAccount(item.email)"/>
+              <button type="button" class="copy-account" :aria-label="$t('copy')" @click.stop="copyAccount(item.email)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.5" />
+                  <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </button>
               <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
                     v-if="showNullSetting(item)"/>
-              <el-dropdown v-else>
+              <el-dropdown v-else popper-class="account-settings-menu">
                 <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -66,9 +72,6 @@
           </el-skeleton>
         </template>
 
-        <div class="noLoading" v-if="noLoading && accounts.length > 0">
-          <div>{{ $t('noMoreData') }}</div>
-        </div>
         <div class="empty" v-if="noLoading && accounts.length === 0">
           <el-empty :description="$t('noMessagesFound')"/>
         </div>
@@ -518,22 +521,27 @@ function submit() {
 path[fill="#ffdda1"] {
   fill: #ffdd7d;
 }
+
+.account-settings-menu [tabindex]:focus-visible {
+  outline-offset: -2px;
+}
 </style>
 <style scoped lang="scss">
 .account-box {
 
-  border-right: 1px solid var(--el-border-color) !important;
-  background-color: var(--el-bg-color);
+  background-color: var(--workspace-background);
   height: 100%;
   overflow: hidden;
 
   .head-opt {
     display: flex;
     align-items: center;
-    height: 38px;
-    box-shadow: var(--header-actions-border);
-    padding-left: 10px;
-    padding-right: 10px;
+    height: 52px;
+    padding-left: 4px;
+    padding-right: 20px;
+    gap: 8px;
+    color: var(--regular-text-color);
+    .mailbox-label { flex: 1; font-size: 13px; font-weight: 600; }
 
     .icon {
       cursor: pointer;
@@ -554,10 +562,10 @@ path[fill="#ffdda1"] {
 
   .scrollbar {
     width: 100%;
-    height: calc(100% - 38px);
+    height: calc(100% - 52px);
     overflow: auto;
     @media (max-width: 767px) {
-      height: calc(100% - 98px);
+      height: calc(100% - 52px);
     }
 
     .empty {
@@ -567,13 +575,6 @@ path[fill="#ffdda1"] {
       height: 100%;
     }
 
-    .noLoading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 10px 0;
-      color: var(--secondary-text-color);
-    }
   }
 
   .btn {
@@ -582,18 +583,20 @@ path[fill="#ffdda1"] {
   }
 
   .item {
-    background-color: var(--el-bg-color);
+    background-color: transparent;
     border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 11px;
-    margin-left: 10px;
-    margin-right: 10px;
+    border: 0;
+    box-shadow: none;
+    padding: 14px;
+    margin-bottom: 6px;
+    margin-left: 0;
+    margin-right: 16px;
     cursor: pointer;
 
     .account {
       font-weight: 400;
-      font-size: 15px;
-      margin-bottom: 20px;
+      font-size: 13px;
+      margin-bottom: 14px;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -602,13 +605,14 @@ path[fill="#ffdda1"] {
     .opt {
       display: flex;
       justify-content: space-between;
-      font-size: 12px;
-      color: #888;
+      font-size: 13px;
+      color: var(--regular-text-color);
 
       .settings {
         display: flex;
         align-items: center;
         gap: 10px;
+        .copy-account { display: flex; color: inherit; cursor: pointer; }
       }
 
       .send-email {
@@ -619,6 +623,7 @@ path[fill="#ffdda1"] {
 
     :deep(.el-card__body) {
       padding: 0;
+      overflow: visible;
     }
   }
 

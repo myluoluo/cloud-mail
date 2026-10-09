@@ -2,10 +2,14 @@
   <el-scrollbar class="scroll">
     <div>
       <div class="title" >
-        <Icon icon="mdi:email-outline" width="24" height="24" />
+        <BrandMark class="brand-mark" />
         <div>{{settingStore.settings.title}}</div>
       </div>
-      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 10px">
+      <el-button class="compose" type="primary" v-perm="'email:send'" @click="uiStore.writerRef.open()">
+        <Icon icon="hugeicons:quill-write-01" width="20" height="20" />
+        <span>{{ $t('compose') }}</span>
+      </el-button>
+      <el-menu :collapse="false" text-color="var(--aside-text)" active-text-color="var(--aside-active-text)">
         <el-menu-item @click="router.push({name: 'email'})" index="email"
                       :class="route.meta.name === 'email' ? 'choose-item' : ''">
           <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
@@ -74,8 +78,11 @@ import router from "@/router/index.js";
 import { useRoute } from "vue-router";
 import {Icon} from "@iconify/vue";
 import {useSettingStore} from "@/store/setting.js";
+import {useUiStore} from "@/store/ui.js";
+import BrandMark from '@/components/brand-mark/index.vue'
 
 const settingStore = useSettingStore();
+const uiStore = useUiStore();
 const route = useRoute();
 
 </script>
@@ -83,26 +90,21 @@ const route = useRoute();
 <style lang="scss" scoped>
 
 .title {
-  margin: 15px 10px;
-  height: 45px;
-  border-radius: 6px;
+  margin: 24px 20px 30px;
+  height: 40px;
   display: flex;
   position: relative;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1890ff, #3a80dd);
-  transition: all 0.3s ease;
-  max-width: 240px;
-  padding: 0 10px;
+  gap: 11px;
+  color: var(--el-text-color-primary);
+  max-width: 180px;
   > div {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    max-width: calc(240px - 20px - 30px);
+    min-width: 0;
   }
 
   :deep(.el-icon) {
@@ -120,29 +122,46 @@ const route = useRoute();
 
 }
 
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--el-color-primary);
+}
+.compose {
+  margin: 0 18px 24px;
+  width: calc(100% - 36px);
+  height: 44px;
+  gap: 12px;
+  font-weight: 600;
+}
 
 .manage-title {
-  margin-top: 10px;
-  padding-left: 20px;
-  color: #fff;
+  margin: 28px 24px 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--el-border-color);
+  color: var(--regular-text-color);
+  font-size: 13px;
 }
 
 .el-menu-item {
-  margin: 3px 10px !important;
-  border-radius: 6px;
-  height: 36px;
-  padding: 10px !important;
+  margin: 4px 14px !important;
+  border-radius: 8px;
+  height: 44px;
+  padding: 12px !important;
+  font-size: 14px;
+  transition: background-color 160ms ease;
 }
 
 .choose-item {
-  font-weight: 400;
+  font-weight: 600;
   background: var(--aside-menu-active-background) !important;
-  backdrop-filter: blur(4px);
+  color: var(--aside-active-text) !important;
 }
 
 @media (hover: hover) {
   .el-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+    background: var(--aside-menu-active-background) !important;
   }
 }
 
@@ -165,12 +184,12 @@ const route = useRoute();
 
 .el-menu {
   border-right: 0;
-  width: 260px;
+  width: 200px;
 }
 
 :deep(.el-divider__text) {
   background: var(--aside-backgound);
-  color: #FFFFFF;
+  color: var(--aside-text);
 }
 
 .scroll {

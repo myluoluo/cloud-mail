@@ -2,23 +2,26 @@
   <div class="header" :class="!hasPerm('email:send') ? 'not-send' : ''">
     <div class="header-btn">
       <hanburger @click="changeAside"></hanburger>
-      <span class="breadcrumb-item">{{ $t(route.meta.title) }}</span>
+      <div class="page-heading">
+        <h1 class="breadcrumb-item">{{ $t(route.meta.title) }}</h1>
+        <span class="current-mailbox" v-if="['email', 'content', 'send', 'star', 'draft'].includes(route.meta.name)">{{ accountStore.currentAccount.email }}</span>
+      </div>
     </div>
-    <div v-perm="'email:send'" class="writer-box" @click="openSend">
+    <button v-perm="'email:send'" type="button" class="writer-box" :class="{ 'writer-visible': !uiStore.asideShow }" :aria-label="$t('compose')" @click="openSend">
       <div class="writer">
         <Icon icon="material-symbols:edit-outline-sharp" width="22" height="22"/>
       </div>
-    </div>
+    </button>
     <div class="toolbar">
-      <div v-if="uiStore.dark" class="sun-icon icon-item" @click="openDark($event)">
+      <button v-if="uiStore.dark" type="button" class="sun-icon icon-item" :aria-label="$t('lightTheme')" @click="openDark($event)">
         <Icon icon="mingcute:sun-fill"/>
-      </div>
-      <div v-else class="dark-icon icon-item" @click="openDark($event)">
+      </button>
+      <button v-else type="button" class="dark-icon icon-item" :aria-label="$t('darkTheme')" @click="openDark($event)">
         <Icon icon="solar:moon-linear"/>
-      </div>
-      <div class="notice icon-item" @click="openNotice">
+      </button>
+      <button type="button" class="notice icon-item" :aria-label="$t('siteNotice')" @click="openNotice">
         <Icon icon="streamline-plump:announcement-megaphone"/>
-      </div>
+      </button>
       <el-dropdown ref="userinfoRef" @visible-change="e => userInfoShow = e" :teleported="false" popper-class="detail-dropdown">
         <div class="avatar" @click="userInfoHide" >
           <div class="avatar-text">
@@ -79,6 +82,7 @@ import {logout} from "@/request/login.js";
 import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
+import {useAccountStore} from "@/store/account.js";
 import {useRoute} from "vue-router";
 import {computed, ref} from "vue";
 import {useSettingStore} from "@/store/setting.js";
@@ -90,6 +94,7 @@ const {t} = useI18n();
 const route = useRoute();
 const settingStore = useSettingStore();
 const userStore = useUserStore();
+const accountStore = useAccountStore();
 const uiStore = useUiStore();
 const logoutLoading = ref(false)
 const userInfoShow = ref(false)
@@ -227,8 +232,7 @@ function openDark(e) {
 function switchDark(nextIsDark, root) {
   root.setAttribute('class', nextIsDark ? 'dark' : '')
   const metaTag = document.getElementById('theme-color-meta');
-  const isMobile =  !window.matchMedia("(pointer: fine) and (hover: hover)").matches;
-  metaTag.setAttribute('content', nextIsDark ? (isMobile ? '#141414' : '#000000') : (isMobile ? '#191A23' : '#F1F1F1'));
+  metaTag.setAttribute('content', getComputedStyle(root).getPropertyValue('--workspace-background').trim());
   uiStore.dark = nextIsDark
 }
 
@@ -361,16 +365,17 @@ function formatName(email) {
   display: grid;
   height: 100%;
   gap: 10px;
-  grid-template-columns: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .header.not-send {
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .writer-box {
   cursor: pointer;
-  display: flex;
+  display: none;
+  @media (max-width: 1024px) { display: flex; }
   align-items: center;
   justify-content: center;
   margin-left: 5px;
@@ -378,10 +383,10 @@ function formatName(email) {
   .writer {
     width: 34px;
     height: 34px;
-    border-radius: 50%;
-    color: #ffffff;
-    background: linear-gradient(135deg, #1890ff, #3a80dd);
-    transition: all 0.3s ease;
+    border-radius: 10px;
+    color: var(--accent-text);
+    background: var(--el-color-primary);
+    transition: transform 160ms ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -393,6 +398,10 @@ function formatName(email) {
     }
   }
 }
+.writer-box:active .writer { transform: scale(0.96); }
+.writer-box.writer-visible { display: flex; }
+.page-heading { text-align: left; min-width: 0; }
+.current-mailbox { color: var(--regular-text-color); font-size: 13px; }
 
 .header-btn {
   display: inline-flex;
@@ -402,12 +411,13 @@ function formatName(email) {
 }
 
 .breadcrumb-item {
-  font-weight: bold;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 24px;
   color: var(--el-text-color-primary);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  @media (max-width: 767px) { font-size: 20px; }
 }
 
 .toolbar {

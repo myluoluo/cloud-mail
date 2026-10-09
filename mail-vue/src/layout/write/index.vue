@@ -719,7 +719,7 @@ function close() {
     width: min(1367px, calc(100% - 80px));
     box-shadow: var(--el-box-shadow-light);
     border: 1px solid var(--el-border-color-light);
-    transition: var(--el-transition-duration);
+    animation: workspace-enter 240ms ease both;
     padding: 15px;
     border-radius: 8px;
     display: grid;
@@ -761,7 +761,7 @@ function close() {
       }
 
       .send-email {
-        color: #999896;
+        color: var(--regular-text-color);
         margin-left: 5px;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -782,6 +782,7 @@ function close() {
       gap: 15px;
 
       .item-title {
+        color: var(--regular-text-color);
       }
 
       .button-item {

@@ -106,37 +106,48 @@ button, input, select, textarea {
 }
 
 :root {
-    --el-color-primary: #1890ff;
-    --el-color-primary-dark-2: #1064c0;
-    --el-color-primary-light-3: #4dabff;
-    --el-color-primary-light-5: #69c0ff;
-    --el-color-primary-light-7: #91d5ff;
-    --el-color-primary-light-9: #e6f7ff;
+    --el-color-primary: #237a65;
+    --el-color-primary-dark-2: #1b6150;
+    --el-color-primary-light-3: #559b89;
+    --el-color-primary-light-5: #89b9aa;
+    --el-color-primary-light-7: #bfd9d0;
+    --el-color-primary-light-8: #d7e8e1;
+    --el-color-primary-light-9: #edf5f1;
+    --el-text-color-primary: #24342f;
+    --el-text-color-secondary: #66736e;
+    --el-border-color: #dce4e0;
+    --el-border-color-light: #e6ece9;
+    --el-border-color-lighter: #edf1ef;
+    --el-bg-color: #ffffff;
+    --workspace-background: #f5f7f8;
+    --aside-text: #53645c;
+    --aside-active-text: #1b6150;
+    --accent-text: #ffffff;
 
     --extra-light-fill: #FAFCFF;
     --settings-page-background: #fafbfc;
     --light-ill: #F5F7FA;
     --light-border: #E4E7ED;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #191A23;
-    --aside-menu-active-background: #27282D;
+    --aside-backgound: #eff3f2;
+    --aside-menu-active-background: #e0eee8;
     --loadding-background: rgba(255, 255, 255, 0.8);
     --dark-border: #CDD0D6;
     --base-fill: #F0F2F5;
-    --regular-text-color: #585d69;
+    --regular-text-color: #606e67;
     --light-border-color: #e7e9ec;
-    --aside-right-border: 3px 0 5px rgba(0, 21, 41, .35);
+    --aside-right-border: inset -1px 0 0 var(--el-border-color-light);
     --choose-account-background: var(--el-color-primary-light-8);
     --el-text-color-regular: var(--el-text-color-primary);
-    --email-scroll-content-color: rgba(25, 41, 59, 0.4);
-    --email-hover-background: #F2F6FC;
-    --email-right-click-background: #FDF6EC;
+    --email-scroll-content-color: #66736e;
+    --email-hover-background: #f4f8f6;
+    --email-right-click-background: #e0eee8;
     --login-border: none;
     --form-desc-color: #71717a;
-    --login-switch-color: #006be6;
+    --login-switch-color: var(--el-color-primary);
     --scrollbar-track-color: #A8ABB2;
     --base-border-color: #DCDFE6;
-    --secondary-text-color: #909399;
+    --secondary-text-color: #66736e;
     --message-block-color: rgba(0, 0, 0, 0);
     --loading-hide-transition: all 200ms;
     --vt-x: 50%;
@@ -145,23 +156,37 @@ button, input, select, textarea {
     --vt-easing: ease-out;
 }
 
-.dark {
+:root.dark {
+    --el-color-primary: #75c2a8;
+    --el-color-primary-dark-2: #4eae8e;
+    --el-color-primary-light-3: #4a8b75;
+    --el-color-primary-light-5: #356352;
+    --el-color-primary-light-7: #284b3e;
+    --el-color-primary-light-8: #233e34;
+    --el-color-primary-light-9: #1c3028;
+    --el-text-color-primary: #e2e9e5;
+    --el-text-color-secondary: #a5b4ac;
+    --el-bg-color: #1a211e;
+    --workspace-background: #141a17;
+    --aside-text: #b4c1b9;
+    --aside-active-text: #a6ddc5;
+    --accent-text: #14251c;
     --extra-light-fill: #191919;
     --settings-page-background: var(--extra-light-fill);
     --light-ill: #262727;
     --light-border: #414243;
-    --aside-backgound: #141414;
-    --aside-menu-active-background: rgba(255, 255, 255, 0.08);
+    --aside-backgound: #161e19;
+    --aside-menu-active-background: #253b30;
     --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
     --loadding-background: rgba(0, 0, 0, 0.3);
     --dark-border: #636466;
     --base-fill: #303030;
     --regular-text-color: #bfbdbc;
     --light-border-color: #414243;
-    --aside-right-border: 3px 0 5px #0A0A0A;
-    --choose-account-background: #39393A;
-    --email-scroll-content-color: rgba(255, 255, 255, 0.3);
-    --email-hover-background: #1D1E1F;
+    --aside-right-border: inset -1px 0 0 var(--el-border-color);
+    --choose-account-background: #253b30;
+    --email-scroll-content-color: #a5b4ac;
+    --email-hover-background: #232f28;
     --email-right-click-background: var(--email-hover-background);
     --login-border: none;
     --form-desc-color: #8D9095;
@@ -171,6 +196,43 @@ button, input, select, textarea {
     --secondary-text-color: #A3A6AD;
     --message-block-color: rgba(30, 30, 30, 0.2);
     --el-border-color: #414243 !important;
+}
+
+/* 邮件工作台的共享控件与运动节奏。 */
+.el-button, .el-input__wrapper, .el-input-tag, .el-select__wrapper, .el-dialog {
+    border-radius: 8px;
+}
+.el-button {
+    transition: background-color 160ms ease, transform 160ms ease;
+}
+.el-button:active { transform: scale(0.98); }
+:root .el-button.el-button--primary {
+    --el-button-hover-bg-color: var(--el-color-primary-dark-2);
+    --el-button-hover-border-color: var(--el-color-primary-dark-2);
+}
+:root .el-message.el-message--error { --el-message-text-color: #a63232; }
+:root.dark .el-message.el-message--error { --el-message-text-color: #f4a7a7; }
+.dark .el-button--primary {
+    --el-button-text-color: var(--accent-text);
+    --el-button-hover-text-color: var(--accent-text);
+    --el-button-active-text-color: var(--accent-text);
+}
+/* 组合输入框由外框提示焦点，内层输入不重复描边。 */
+button:focus-visible, a:focus-visible,
+[tabindex]:focus-visible:not(:is(.el-input__inner, .el-input-tag__input, .el-textarea__inner, .el-select__input)) {
+    outline: 2px solid var(--el-color-primary);
+    outline-offset: 3px;
+}
+@keyframes workspace-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+    :root { --vt-duration: 0ms; }
 }
 
 .el-input {

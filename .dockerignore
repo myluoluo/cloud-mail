@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/dist
+**/.wrangler
+.pnpm-store
+docker/.env
+docs/ui-redesign/shots
+**/.DS_Store

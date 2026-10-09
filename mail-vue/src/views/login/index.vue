@@ -1,16 +1,10 @@
 <template>
   <div id="login-box" :style=" background ? 'background: var(--el-bg-color)' : ''" v-loading="oauthLoading" element-loading-text="登录中...">
-    <div id="background-wrap" v-if="!settingStore.settings.background">
-      <div class="x1 cloud"></div>
-      <div class="x2 cloud"></div>
-      <div class="x3 cloud"></div>
-      <div class="x4 cloud"></div>
-      <div class="x5 cloud"></div>
-    </div>
-    <div v-else :style="background"></div>
+    <div v-if="background" class="login-background" :style="background"></div>
     <div class="form-wrapper">
       <div class="container">
-        <span class="form-title">{{ settingStore.settings.title }}</span>
+        <div class="form-brand"><BrandMark /> <span>{{ settingStore.settings.title }}</span></div>
+        <span class="form-title">{{ show === 'login' ? $t('loginWelcome') : $t('regTitle') }}</span>
         <span class="form-desc" v-if="show === 'login'">{{ $t('loginTitle') }}</span>
         <span class="form-desc" v-else>{{ $t('regTitle') }}</span>
         <div v-show="show === 'login'">
@@ -177,6 +171,7 @@ import {useAccountStore} from "@/store/account.js";
 import {useUserStore} from "@/store/user.js";
 import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
+import BrandMark from '@/components/brand-mark/index.vue'
 import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
@@ -204,6 +199,9 @@ const show = ref('login')
 const showPasswordLogin = ref(false)
 
 const oauthKeys = ['linuxdo', 'github', 'google', 'pocketId']
+const pocketId = { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' }
+// 开发预览只展示入口，认证能力仍由后端配置决定。
+const previewPocketId = import.meta.env.DEV && import.meta.env.VITE_POCKET_ID_PREVIEW === 'true'
 
 const oauthProvider = computed(() => {
   const fromStore = sessionStorage.getItem('oauthProvider')
@@ -215,7 +213,7 @@ const oauthProvider = computed(() => {
 
 const oauthProviders = computed(() => {
   const allProviders = [
-    { key: 'pocketId', label: 'Pocket ID', icon: 'material-symbols:passkey', iconType: 'iconify' },
+    pocketId,
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
     { key: 'github', label: 'GitHub', icon: 'codicon:github-inverted', iconType: 'iconify' },
     { key: 'linuxdo', label: 'LinuxDo', icon: '/image/linuxdo.webp', iconType: 'image' },
@@ -223,7 +221,7 @@ const oauthProviders = computed(() => {
   return allProviders.filter(p => settingStore.settings[p.key + 'Switch'] === 0)
 })
 
-const pocketIdProvider = computed(() => oauthProviders.value.find(provider => provider.key === 'pocketId'))
+const pocketIdProvider = computed(() => oauthProviders.value.find(provider => provider.key === 'pocketId') ?? (previewPocketId ? pocketId : null))
 const secondaryOauthProviders = computed(() => oauthProviders.value.filter(provider => provider.key !== 'pocketId'))
 
 const bindForm = reactive({
@@ -674,9 +672,8 @@ function submitRegister() {
 <style lang="scss" scoped>
 
 .form-wrapper {
-  position: fixed;
-  right: 0;
-  height: 100%;
+  position: relative;
+  width: min(460px, 100%);
   z-index: 10;
   display: flex;
   align-items: center;
@@ -688,24 +685,21 @@ function submitRegister() {
 
 .container {
   background: v-bind(loginOpacity);
-  padding-left: 40px;
-  padding-right: 40px;
+  padding: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  width: 450px;
-  height: 100%;
-  border-left: 1px solid var(--login-border);
-  box-shadow: var(--el-box-shadow-light);
+  width: min(460px, 100%);
+  height: auto;
+  border-radius: 16px;
+  animation: workspace-enter 320ms ease both;
   @media (max-width: 1024px) {
     padding: 20px 18px;
-    width: 384px;
-    margin-left: 18px;
+    width: min(400px, 100%);
   }
   @media (max-width: 767px) {
-    border: 1px solid var(--login-border);
-    padding: 20px 18px;
-    border-radius: 6px;
+    padding: 32px 24px;
+    border-radius: 12px;
     height: fit-content;
     width: 100%;
     margin-right: 18px;
@@ -713,20 +707,21 @@ function submitRegister() {
   }
 
   .btn {
-    height: 36px;
+    height: 46px;
     width: 100%;
-    border-radius: 6px;
+    border-radius: 8px;
+    font-weight: 600;
   }
 
   .form-desc {
-    margin-top: 5px;
-    margin-bottom: 18px;
+    margin-top: 10px;
+    margin-bottom: 32px;
     color: var(--form-desc-color);
   }
 
   .form-title {
     font-weight: bold;
-    font-size: 22px !important;
+    font-size: 28px !important;
   }
 
   .switch {
@@ -746,7 +741,7 @@ function submitRegister() {
     border: 0;
     color: var(--form-desc-color);
     background: transparent;
-    font-size: 12px;
+    font-size: 13px;
     cursor: pointer;
 
     &:focus-visible {
@@ -770,12 +765,12 @@ function submitRegister() {
   }
 
   .el-input {
-    height: 38px;
+    height: 46px;
     width: 100%;
     margin-bottom: 18px;
 
     :deep(.el-input__inner) {
-      height: 36px;
+      height: 44px;
     }
   }
 }
@@ -857,88 +852,28 @@ function submitRegister() {
 
 
 #login-box {
-  background: linear-gradient(to bottom, #2980b9, #6dd5fa, #fff);
-  font: 100% Arial, sans-serif;
-  height: 100%;
+  background: var(--workspace-background);
+  min-height: 100%;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
 }
-
-
-#background-wrap {
-  height: 100%;
-  z-index: 0;
+.login-background {
+  position: fixed;
+  inset: 0;
 }
-
-@keyframes animateCloud {
-  0% {
-    margin-left: -500px;
-  }
-
-  100% {
-    margin-left: 100%;
-  }
-}
-
-.x1 {
-  animation: animateCloud 30s linear infinite;
-  transform: scale(0.65);
-}
-
-.x2 {
-  animation: animateCloud 15s linear infinite;
-  transform: scale(0.3);
-}
-
-.x3 {
-  animation: animateCloud 25s linear infinite;
-  transform: scale(0.5);
-}
-
-.x4 {
-  animation: animateCloud 13s linear infinite;
-  transform: scale(0.4);
-}
-
-.x5 {
-  animation: animateCloud 20s linear infinite;
-  transform: scale(0.55);
-}
-
-.cloud {
-  background: linear-gradient(to bottom, #fff 5%, #f1f1f1 100%);
-  border-radius: 100px;
-  box-shadow: 0 8px 5px rgba(0, 0, 0, 0.1);
-  height: 120px;
-  width: 350px;
-  position: relative;
-}
-
-.cloud:after,
-.cloud:before {
-  content: "";
-  position: absolute;
-  background: #fff;
-  z-index: -1;
-}
-
-.cloud:after {
-  border-radius: 100px;
-  height: 100px;
-  left: 50px;
-  top: -50px;
-  width: 100px;
-}
-
-.cloud:before {
-  border-radius: 200px;
-  height: 180px;
-  width: 180px;
-  right: 50px;
-  top: -90px;
+.form-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+  font-size: 19px;
+  font-weight: 600;
+  svg { width: 36px; height: 36px; color: var(--el-color-primary); }
 }
 
 </style>

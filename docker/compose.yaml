@@ -1,0 +1,32 @@
+name: cloud-mail-ui
+services:
+  worker:
+    image: cloud-mail-ui:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    working_dir: /app/mail-worker
+    command: ["node", "/app/docker/start-worker.mjs"]
+    environment:
+      LOCAL_JWT_SECRET: ${LOCAL_JWT_SECRET:?请先生成 docker/.env}
+      LOCAL_MAIL_PASSWORD: ${LOCAL_MAIL_PASSWORD:?请先生成 docker/.env}
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - mail-data:/data
+      - ../mail-worker/src:/app/mail-worker/src:ro
+      - .:/app/docker:ro
+  web:
+    image: cloud-mail-ui:local
+    working_dir: /app/mail-vue
+    environment:
+      VITE_POCKET_ID_PREVIEW: "true"
+    command: ["pnpm", "exec", "vite", "--mode", "docker", "--host", "0.0.0.0"]
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - ../mail-vue/src:/app/mail-vue/src:ro
+    depends_on:
+      - worker
+volumes:
+  mail-data:
