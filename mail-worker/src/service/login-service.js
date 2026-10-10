@@ -201,10 +201,19 @@ const loginService = {
 
 	async login(c, params, noVerifyPwd = false) {
 
-		const { email, password } = params;
+		const { email, password, token } = params;
 
 		if ((!email || !password) && !noVerifyPwd) {
 			throw new BizError(t('emailAndPwdEmpty'));
+		}
+
+		if (!noVerifyPwd) {
+			const setting = await settingService.query(c);
+			if (setting.siteKey && setting.secretKey) {
+				await turnstileService.verify(c, token, {
+					action: 'login', hostname: new URL(c.req.url).hostname
+				});
+			}
 		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);

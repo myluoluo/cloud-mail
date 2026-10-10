@@ -205,6 +205,7 @@ const settingService = {
 			send: settingRow.send,
 			r2Domain: settingRow.r2Domain,
 			siteKey: settingRow.siteKey,
+			loginVerify: !!(settingRow.siteKey && settingRow.secretKey),
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.loginDomain === 1 && !token ? [] : settingRow.domainList,

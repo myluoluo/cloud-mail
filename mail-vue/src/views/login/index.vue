@@ -48,6 +48,8 @@
             </el-input>
             <el-input v-model="form.password" :placeholder="$t('password')" type="password" autocomplete="off" @keyup.enter="submit">
             </el-input>
+            <Turnstile v-if="settingStore.settings.loginVerify && show === 'login' && (!pocketIdProvider || showPasswordLogin)"
+                       ref="loginTurnstile" v-model="loginVerifyToken" :site-key="settingStore.settings.siteKey" action="login" />
             <el-button class="btn" type="primary" @click="submit" :loading="loginLoading"
             >{{ $t('loginBtn') }}
             </el-button>
@@ -172,6 +174,7 @@ import {useUserStore} from "@/store/user.js";
 import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
 import BrandMark from '@/components/brand-mark/index.vue'
+import Turnstile from '@/components/turnstile/index.vue'
 import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
@@ -192,6 +195,8 @@ const uiStore = useUiStore();
 const settingStore = useSettingStore();
 const route = useRoute();
 const loginLoading = ref(false)
+const loginVerifyToken = ref('')
+const loginTurnstile = ref(null)
 const bindLoading = ref(false)
 const oauthLoading = ref(false);
 const showBindForm = ref(false);
@@ -467,11 +472,18 @@ const submit = () => {
     return
   }
 
+  if (settingStore.settings.loginVerify && !loginVerifyToken.value) {
+    ElMessage({message: t('botVerifyMsg'), type: 'error', plain: true})
+    return
+  }
+
   loginLoading.value = true
-  login(email, form.password).then(async data => {
+  return login(email, form.password, loginVerifyToken.value).then(async data => {
     await saveToken(data.token)
   }).finally(() => {
     loginLoading.value = false
+    loginVerifyToken.value = ''
+    loginTurnstile.value?.reset()
   })
 }
 
