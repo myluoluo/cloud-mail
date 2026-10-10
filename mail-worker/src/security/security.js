@@ -16,7 +16,6 @@ const exclude = [
 	'/webhooks',
 	'/init',
 	'/public/genToken',
-	'/telegram',
 	'/test',
 	'/oauth'
 ];
@@ -97,7 +96,8 @@ app.use('*', async (c, next) => {
 		return path.startsWith(item);
 	});
 
-	if (index > -1) {
+	// Telegram 仅预览链接和入站 webhook 使用各自凭据，其余接口校验登录会话。
+	if (index > -1 || path === '/telegram/webhook' || path.startsWith('/telegram/getEmail/')) {
 		return await next();
 	}
 

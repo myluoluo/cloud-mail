@@ -127,7 +127,8 @@ const telegramService = {
 
 		const headerSecret = c.req.header('X-Telegram-Bot-Api-Secret-Token');
 		const expectedSecret = await this.getWebhookSecret(c, tgBotToken);
-		if (headerSecret && expectedSecret && headerSecret !== expectedSecret) {
+		// 必须携带与已注册 webhook 一致的 secret，缺失或空值也拒绝。
+		if (!headerSecret || !expectedSecret || headerSecret !== expectedSecret) {
 			console.warn('Telegram webhook secret mismatch');
 			return c.text('Unauthorized', 401);
 		}
