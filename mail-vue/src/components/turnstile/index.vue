@@ -48,7 +48,7 @@ function fail() {
 function ready() {
   sdkReady.value = true
   loadError.value = false
-  window.turnstile.ready(render)
+  render()
 }
 
 function reset() {

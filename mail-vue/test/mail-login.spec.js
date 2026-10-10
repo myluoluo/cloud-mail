@@ -110,13 +110,14 @@ describe('登录入口与通知链接跳转', () => {
     it('密码登录等待验证码，验证后提交 token 并在登录失败后重置', async () => {
         useSettingStore().settings = {loginDomain: 1, loginOpacity: 1, pocketIdSwitch: 1, loginVerify: true, siteKey: 'test-site-key'}
         let callbacks
-        const turnstile = {render: vi.fn((element, options) => {callbacks = options; return 'login-widget'}), reset: vi.fn(), remove: vi.fn(), ready: fn => fn()}
+        const turnstile = {render: vi.fn((element, options) => {callbacks = options; return 'login-widget'}), reset: vi.fn(), remove: vi.fn(), ready: vi.fn(() => {throw new Error('Remove async/defer before using turnstile.ready()')})}
         vi.stubGlobal('turnstile', turnstile)
         const error = new Error('密码错误')
         login.mockRejectedValue(error)
         const host = mountLogin()
         app.config.errorHandler = vi.fn()
         await vi.waitFor(() => expect(turnstile.render).toHaveBeenCalledOnce())
+        expect(turnstile.ready).not.toHaveBeenCalled()
         expect(callbacks).toMatchObject({sitekey: 'test-site-key', action: 'login'})
         for (const [placeholder, value] of [[zh.emailAccount, 'user@example.com'], [zh.password, 'correct-password']]) {
             const input = host.querySelector(`#password-login-form input[placeholder="${placeholder}"]`)
@@ -153,6 +154,8 @@ describe('登录入口与通知链接跳转', () => {
         useSettingStore().settings = {loginDomain: 1, loginOpacity: 1, pocketIdSwitch: 1, loginVerify: true, siteKey: 'test-site-key'}
         const script = document.createElement('script')
         script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+        script.async = true
+        script.defer = true
         document.head.append(script)
         script.dispatchEvent(new Event('error'))
         const host = mountLogin()
@@ -161,10 +164,11 @@ describe('登录入口与通知链接跳转', () => {
         expect(host.querySelector('[role="status"]').textContent).toContain('正在加载人机验证')
         script.dispatchEvent(new Event('error'))
         await vi.waitFor(() => expect(host.querySelector('[role="alert"]').textContent).toBe(zh.verifyModuleFailed))
-        const turnstile = {render: vi.fn(() => 'login-widget'), reset: vi.fn(), remove: vi.fn(), ready: fn => fn()}
+        const turnstile = {render: vi.fn(() => 'login-widget'), reset: vi.fn(), remove: vi.fn(), ready: vi.fn(() => {throw new Error('Remove async/defer before using turnstile.ready()')})}
         vi.stubGlobal('turnstile', turnstile)
         script.dispatchEvent(new Event('load'))
         await vi.waitFor(() => expect(turnstile.render).toHaveBeenCalledOnce())
+        expect(turnstile.ready).not.toHaveBeenCalled()
         expect(host.querySelector('.turnstile-reload')).toBe(null)
         expect(host.querySelector('[role="status"]')).toBe(null)
         expect(host.querySelector('[role="alert"]')).toBe(null)
