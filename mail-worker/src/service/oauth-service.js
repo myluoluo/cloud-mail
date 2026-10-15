@@ -65,9 +65,12 @@ const oauthService = {
 
 	async bindUser(c, params) {
 
-		const { email, oauthUserId, code } = params;
+		const { email, oauthUserId, platform, code } = params;
 
-		const oauthRow = await this.getById(c, oauthUserId);
+		const oauthRow = await this.getByIdentity(c, platform, oauthUserId);
+		if (!oauthRow) {
+			throw new BizError('OAuth 身份不存在', 403);
+		}
 
 		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
@@ -79,7 +82,7 @@ const oauthService = {
 
 		userRow = await userService.selectByEmail(c, email);
 
-		orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthUserId, oauthUserId)).run();
+		await orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthId, oauthRow.oauthId)).run();
 		const jwtToken = await loginService.login(c, { email, password: null }, true);
 
 		return { userInfo: oauthRow, token: jwtToken}
@@ -247,12 +250,13 @@ const oauthService = {
 
 	async saveUser(c, userInfo) {
 
-		const userInfoRow = await this.getById(c, userInfo.oauthUserId);
+		// 不同提供方的同号 subject 不是同一个身份。
+		const userInfoRow = await this.getByIdentity(c, userInfo.platform, userInfo.oauthUserId);
 
 		if (!userInfoRow) {
 			return await orm(c).insert(oauth).values(userInfo).returning().get();
 		} else {
-			return await orm(c).update(oauth).set(userInfo).where(eq(oauth.oauthUserId, userInfo.oauthUserId)).returning().get();
+			return await orm(c).update(oauth).set(userInfo).where(eq(oauth.oauthId, userInfoRow.oauthId)).returning().get();
 		}
 
 	},
@@ -261,10 +265,6 @@ const oauthService = {
 		if (setting[switchKey] !== 0) {
 			throw new BizError(t('oauthDisabled'));
 		}
-	},
-
-	async getById(c, oauthUserId) {
-		return await orm(c).select().from(oauth).where(eq(oauth.oauthUserId, oauthUserId)).get();
 	},
 
 	async getByIdentity(c, platform, oauthUserId) {

@@ -5,8 +5,8 @@ import {createI18n} from 'vue-i18n'
 import {useSettingStore} from '@/store/setting.js'
 import zh from '@/i18n/zh.js'
 
-const {oauthPocketIdLogin, oauthPocketIdAuthorize, loginUserInfo, login} = vi.hoisted(() => ({oauthPocketIdLogin: vi.fn(), oauthPocketIdAuthorize: vi.fn(), loginUserInfo: vi.fn(), login: vi.fn()}))
-vi.mock('@/request/ouath.js', () => ({oauthPocketIdLogin, oauthPocketIdAuthorize, oauthBindUser: vi.fn(), oauthGithubLogin: vi.fn(), oauthGoogleLogin: vi.fn(), oauthLinuxDoLogin: vi.fn()}))
+const {oauthPocketIdLogin, oauthPocketIdAuthorize, oauthGithubLogin, oauthBindUser, loginUserInfo, login} = vi.hoisted(() => ({oauthPocketIdLogin: vi.fn(), oauthPocketIdAuthorize: vi.fn(), oauthGithubLogin: vi.fn(), oauthBindUser: vi.fn(), loginUserInfo: vi.fn(), login: vi.fn()}))
+vi.mock('@/request/ouath.js', () => ({oauthPocketIdLogin, oauthPocketIdAuthorize, oauthBindUser, oauthGithubLogin, oauthGoogleLogin: vi.fn(), oauthLinuxDoLogin: vi.fn()}))
 vi.mock('@/request/my.js', () => ({loginUserInfo}))
 vi.mock('@/request/login.js', () => ({login, register: vi.fn()}))
 vi.mock('@/request/setting.js', () => ({websiteConfig: vi.fn().mockResolvedValue({domainList: []})}))
@@ -79,6 +79,22 @@ describe('登录入口与通知链接跳转', () => {
         expect(router.currentRoute.value.query.id).toBe('42')
         expect(sessionStorage.getItem('mailRedirectId')).toBe(null)
         expect(oauthPocketIdLogin).toHaveBeenCalledWith('test-code', 'test-state', `${window.location.origin}/login`)
+    })
+
+    it('未绑定 OAuth 身份提交邮箱时保留提供方，避免跨平台同号混用', async () => {
+        sessionStorage.setItem('oauthProvider', 'github')
+        await router.replace('/login?code=test-code&state=github')
+        oauthGithubLogin.mockResolvedValue({token: null, userInfo: {platform: 'github', oauthUserId: '4242'}})
+        oauthBindUser.mockRejectedValue(new Error('测试不提交真实绑定'))
+        const host = mountLogin()
+        await vi.waitFor(() => expect(ElMessage).toHaveBeenCalledWith(expect.objectContaining({message: '请注册绑定一个邮箱'})))
+        const input = host.querySelector('.bind-container input')
+        input.value = 'bound@example.com'
+        input.dispatchEvent(new Event('input', {bubbles: true}))
+        host.querySelector('.bind-container button').click()
+        await vi.waitFor(() => expect(oauthBindUser).toHaveBeenCalledWith(expect.objectContaining({
+            email: 'bound@example.com', oauthUserId: '4242', platform: 'github',
+        })))
     })
 
     it('开发预览显示 Pocket ID，可展开密码登录，点击仍调用真实授权入口', async () => {
