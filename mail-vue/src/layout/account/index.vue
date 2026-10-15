@@ -27,7 +27,7 @@
               <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"
                     v-if="showNullSetting(item)"/>
               <el-dropdown v-else popper-class="account-settings-menu">
-                <Icon icon="fluent:settings-24-filled" width="21" height="21" color="#909399"/>
+                <Icon class="settings-trigger" icon="fluent:settings-24-filled" width="21" height="21"/>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item v-if="hasPerm('email:send')" @click="openSetName(item)">{{ $t('rename') }}</el-dropdown-item>
@@ -613,6 +613,16 @@ path[fill="#ffdda1"] {
         align-items: center;
         gap: 10px;
         .copy-account { display: flex; color: inherit; cursor: pointer; }
+
+        .settings-trigger {
+          color: #909399;
+
+          /* 悬停会聚焦齿轮，以图标变色提示焦点，避免方形描边。 */
+          &:focus-visible {
+            outline: none;
+            color: var(--el-color-primary);
+          }
+        }
       }
 
       .send-email {
