@@ -130,6 +130,12 @@ app.use('*', async (c, next) => {
 	if (!authInfo.tokens.includes(token)) {
 		throw new BizError(t('authExpired'), 401);
 	}
+	// 旧版本退出可能留下没有 KV TTL 的记录，刷新前也必须校验期限。
+	const expiration = Date.parse(authInfo.refreshTime) + constant.TOKEN_EXPIRE * 1000;
+	if (!Number.isFinite(expiration) || expiration <= Date.now()) {
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+		throw new BizError(t('authExpired'), 401);
+	}
 
 	const permIndex = requirePerms.findIndex(item => {
 		return path.startsWith(item);

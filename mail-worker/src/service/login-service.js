@@ -289,16 +289,26 @@ const loginService = {
 
 		await userService.updateUserInfo(c, userRow.userId);
 
+		authInfo.refreshTime = dayjs().toISOString();
 		await c.env.kv.put(KvConst.AUTH_INFO + userRow.userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 		return jwt;
 	},
 
 	async logout(c, userId) {
-		const token =userContext.getToken(c);
-		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+		const token = await userContext.getToken(c);
+		const key = KvConst.AUTH_INFO + userId;
+		const authInfo = await c.env.kv.get(key, { type: 'json' });
+		if (!authInfo) throw new BizError(t('authExpired'), 401);
 		const index = authInfo.tokens.findIndex(item => item === token);
+		if (index === -1) throw new BizError(t('authExpired'), 401);
 		authInfo.tokens.splice(index, 1);
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo));
+		// 退出不能把剩余会话变成永久记录，也不延长已有过期时间。
+		const expiration = Math.floor(Date.parse(authInfo.refreshTime) / 1000) + constant.TOKEN_EXPIRE;
+		if (authInfo.tokens.length === 0 || expiration <= Math.floor(Date.now() / 1000)) {
+			await c.env.kv.delete(key);
+			return;
+		}
+		await c.env.kv.put(key, JSON.stringify(authInfo), {expiration});
 	}
 
 };

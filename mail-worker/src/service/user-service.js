@@ -64,6 +64,7 @@ const userService = {
 			throw new BizError(t('pwdMinLength'));
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
 	},
 
@@ -283,7 +284,6 @@ const userService = {
 
 		const { password, userId } = params;
 		await this.resetPassword(c, { password }, userId);
-		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	async setStatus(c, params) {

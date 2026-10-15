@@ -200,6 +200,8 @@ function submitPwd() {
     setPwdLoading.value = false
     form.password = ''
     form.newPwd = ''
+    localStorage.removeItem('token')
+    router.push('/login')
   }).catch(() => {
     setPwdLoading.value = false
   })
