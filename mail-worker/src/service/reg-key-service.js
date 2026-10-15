@@ -85,14 +85,6 @@ const regKeyService = {
 		return regKeyList;
 	},
 
-	async reduceCount(c, code, count) {
-		await orm(c).update(regKey).set({
-			count: sql`${regKey.count}
-	  -
-	  ${count}`
-		}).where(eq(regKey.code, code)).run();
-	},
-
 	async history(c, params) {
 		const { regKeyId } = params;
 		return userService.listByRegKeyId(c, regKeyId);

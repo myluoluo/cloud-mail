@@ -81,7 +81,7 @@ const loginService = {
 		if (regKey === settingConst.regKey.OPTIONAL) {
 			const result = await this.handleOpenOptional(c, regKey, code)
 			type = result?.type
-			regKeyId = result?.regKeyId
+			regKeyId = result?.regKeyId ?? 0
 		}
 
 		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
@@ -133,19 +133,9 @@ const loginService = {
 		const { salt, hash } = await saltHashUtils.hashPassword(password);
 
 		const userData = { email, regKeyId, password: hash, salt, type: type || defType };
-		const userId = oauthIdentity
-			? await this.registerOAuthAccount(c, {...userData, oauthId: oauthIdentity.oauthId})
-			: await userService.insert(c, userData);
-
-		if (!oauthIdentity) {
-			await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
-		}
+		const userId = await this.registerAccount(c, {...userData, oauthId: oauthIdentity?.oauthId});
 
 		await userService.updateUserInfo(c, userId, true);
-
-		if (regKey !== settingConst.regKey.CLOSE && type) {
-			await regKeyService.reduceCount(c, code, 1);
-		}
 
 		if (registerVerify === settingConst.registerVerify.COUNT && !regVerifyOpen) {
 			const row = await verifyRecordService.increaseRegCount(c);
@@ -156,21 +146,41 @@ const loginService = {
 
 	},
 
-	async registerOAuthAccount(c, {email, password, salt, type, regKeyId, oauthId}) {
-		// 资格检查与写入同批提交：并发重用凭据时不能留下额外用户或邮箱。
-		const [created] = await c.env.db.batch([
+	async registerAccount(c, {email, password, salt, type, regKeyId, oauthId}) {
+		const conditions = [];
+		const conditionValues = [];
+		if (oauthId) {
+			conditions.push('EXISTS (SELECT 1 FROM oauth WHERE oauth_id = ? AND user_id = 0)');
+			conditionValues.push(oauthId);
+		}
+		if (regKeyId) {
+			conditions.push("EXISTS (SELECT 1 FROM reg_key WHERE rege_key_id = ? AND role_id = ? AND count > 0 AND date(expire_time, '+8 hours') >= ?)");
+			conditionValues.push(regKeyId, type, toUtc().tz('Asia/Shanghai').format('YYYY-MM-DD'));
+		}
+		// 后续写入只引用本批新建的凭据，资格失效时整批不产生账号或扣减。
+		const createdUser = 'email = ? AND password = ? AND salt = ?';
+		const credentials = [email, password, salt];
+		const statements = [
 			c.env.db.prepare(`INSERT INTO user (email, password, salt, type, reg_key_id)
-				SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM oauth WHERE oauth_id = ? AND user_id = 0)
-				RETURNING user_id`).bind(email, password, salt, type, regKeyId, oauthId),
+				SELECT ?, ?, ?, ?, ? WHERE ${conditions.join(' AND ') || '1 = 1'}
+				RETURNING user_id`).bind(email, password, salt, type, regKeyId, ...conditionValues),
 			c.env.db.prepare(`INSERT INTO account (email, name, user_id)
-				SELECT email, ?, user_id FROM user WHERE email = ?
-				AND EXISTS (SELECT 1 FROM oauth WHERE oauth_id = ? AND user_id = 0)`)
-				.bind(emailUtils.getName(email), email, oauthId),
-			c.env.db.prepare(`UPDATE oauth SET user_id = (SELECT user_id FROM user WHERE email = ?)
-				WHERE oauth_id = ? AND user_id = 0`).bind(email, oauthId)
-		]);
+				SELECT email, ?, user_id FROM user WHERE ${createdUser}`)
+				.bind(emailUtils.getName(email), ...credentials)
+		];
+		if (oauthId) {
+			statements.push(c.env.db.prepare(`UPDATE oauth SET user_id = (SELECT user_id FROM user WHERE email = ?)
+				WHERE oauth_id = ? AND user_id = 0 AND EXISTS (SELECT 1 FROM user WHERE ${createdUser})`)
+				.bind(email, oauthId, ...credentials));
+		}
+		if (regKeyId) {
+			statements.push(c.env.db.prepare(`UPDATE reg_key SET count = count - 1 WHERE rege_key_id = ? AND count > 0
+				AND EXISTS (SELECT 1 FROM user WHERE ${createdUser})`).bind(regKeyId, ...credentials));
+		}
+		// D1 batch 按顺序原子执行，任何写入失败都会回滚用户、邮箱、绑定与名额。
+		const [created] = await c.env.db.batch(statements);
 		const userId = created.results[0]?.user_id;
-		if (!userId) throw new BizError('OAuth 身份已绑定', 409);
+		if (!userId) throw new BizError('注册条件已失效，请重试', 409);
 		return userId;
 	},
 
