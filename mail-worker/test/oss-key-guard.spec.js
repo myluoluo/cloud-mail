@@ -1,8 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DatabaseSync } from 'node:sqlite';
+import { getTableColumns } from 'drizzle-orm';
 
 import r2Service from '../src/service/r2-service';
 import fileUtils from '../src/utils/file-utils';
 import constant from '../src/const/constant';
+import s3Service from '../src/service/s3-service';
+import attService from '../src/service/att-service';
+import { att } from '../src/entity/att';
+
+afterEach(() => vi.restoreAllMocks());
 
 function createContext() {
 	const getWithMetadata = vi.fn(async () => ({
@@ -106,5 +113,57 @@ describe('公开对象读取键隔离', () => {
 		const key = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(new Uint8Array([2])) + '.webp';
 		await expect(r2Service.toObjResp(c, key)).resolves.toBeInstanceOf(Response);
 		expect(getWithMetadata).toHaveBeenCalledWith(key, { type: 'arrayBuffer' });
+	});
+
+	it.each(['KV', 'R2', 'S3'])('%s 返回的历史 HTML/SVG 内联对象必须隔离并强制下载', async storage => {
+		for (const mime of ['text/html; charset=utf-8', 'image/svg+xml']) {
+			const content = '<p>静态附件标记</p>';
+			const metadata = {contentType: mime, contentDisposition: 'inline;filename=mail.html'};
+			getWithMetadata.mockResolvedValue({value: new TextEncoder().encode(content), metadata});
+			if (storage === 'R2') {
+				c.env.r2 = {get: vi.fn(async () => ({body: content, httpMetadata: metadata}))};
+			} else if (storage === 'S3') {
+				c.get = () => ({bucket: 'test', endpoint: 'https://storage.example', s3AccessKey: 'test', s3SecretKey: 'test'});
+				vi.spyOn(s3Service, 'client').mockResolvedValue({send: async () => ({Body: content, ContentType: mime, ContentDisposition: metadata.contentDisposition})});
+			}
+			const response = await r2Service.toObjResp(c, 'attachments/old.html');
+			expect(response.headers.get('Content-Security-Policy')).toBe('sandbox');
+			expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+			expect(response.headers.get('Content-Disposition')).toBe('attachment');
+			expect(await response.text()).toBe(content);
+		}
+	});
+
+	it('栅格图片保留类型和内联显示，缺失对象仍返回 null', async () => {
+		getWithMetadata.mockResolvedValue({value: new Uint8Array([1, 2, 3]), metadata: {contentType: 'image/png', contentDisposition: 'inline;filename=picture.png'}});
+		const response = await r2Service.toObjResp(c, 'attachments/picture.png');
+		expect(response.headers.get('Content-Type')).toBe('image/png');
+		expect(response.headers.get('Content-Disposition')).toBe('inline;filename=picture.png');
+		expect(response.headers.get('Content-Security-Policy')).toBe('sandbox');
+		getWithMetadata.mockResolvedValue({value: null});
+		await expect(r2Service.toObjResp(c, 'attachments/missing')).resolves.toBeNull();
+	});
+
+	it.each([
+		['text/html', '<cid>', 'attachment'],
+		['image/svg+xml', '<cid>', 'attachment'],
+		['image/png', '<cid>', 'inline'],
+		['image/png', undefined, 'attachment'],
+	])('保存入站附件 %s、Content-ID %s 时使用 %s', async (mimeType, contentId, disposition) => {
+		const sqlite = new DatabaseSync(':memory:');
+		const columns = Object.values(getTableColumns(att)).map(column => `${column.name} ${column.dataType === 'number' ? 'INTEGER' : 'TEXT'}`);
+		sqlite.exec(`CREATE TABLE attachments (${columns.join(', ')})`);
+		c.env.db = {prepare(query) {
+			const statement = sqlite.prepare(query);
+			return {bind: (...values) => ({run: async () => statement.run(...values)})};
+		}};
+		c.env.kv.put = vi.fn();
+		try {
+			await attService.addAtt(c, [{key: 'attachments/test', filename: 'test', mimeType, contentId, content: new Uint8Array([1])}]);
+			expect(c.env.kv.put.mock.calls[0][2].metadata.contentDisposition).toBe(`${disposition};filename=test`);
+			expect(sqlite.prepare('SELECT COUNT(*) AS count FROM attachments').get().count).toBe(1);
+		} finally {
+			sqlite.close();
+		}
 	});
 });

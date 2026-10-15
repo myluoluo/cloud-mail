@@ -20,10 +20,10 @@ const attService = {
 				contentType: attachment.mimeType,
 			}
 
-			if (!attachment.contentId) {
-				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
-			} else {
-				metadate.contentDisposition = `inline;filename=${attachment.filename}`
+			// Content-ID 不是安全依据，仅静态栅格图片允许内联展示。
+			const inline = attachment.contentId && /^image\/(?:png|jpeg|gif|webp|avif)$/i.test(attachment.mimeType);
+			metadate.contentDisposition = `${inline ? 'inline' : 'attachment'};filename=${attachment.filename}`;
+			if (inline) {
 				metadate.cacheControl = `max-age=259200`
 			}
 

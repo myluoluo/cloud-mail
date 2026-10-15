@@ -13,6 +13,19 @@ function isPublicObjectKey(key) {
 		&& PUBLIC_OBJECT_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
+function protectObjectResponse(response) {
+	if (!response) return null;
+	const headers = new Headers(response.headers);
+	// 历史附件也可能带活动内容；在公开读取边界阻断脚本和本站同源权限。
+	headers.set('Content-Security-Policy', 'sandbox');
+	headers.set('X-Content-Type-Options', 'nosniff');
+	const mime = (headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+	if (['text/html', 'application/xhtml+xml', 'image/svg+xml'].includes(mime)) {
+		headers.set('Content-Disposition', 'attachment');
+	}
+	return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
+}
+
 const r2Service = {
 
 	async storageType(c) {
@@ -82,7 +95,7 @@ const r2Service = {
 			const storageType = await this.storageType(c);
 
 			if (storageType === 'KV') {
-				return await kvObjService.getObj(c, key);
+				return protectObjectResponse(await kvObjService.getObj(c, key));
 			}
 
 			if (storageType === 'R2') {
@@ -90,17 +103,17 @@ const r2Service = {
 				if (!obj) {
 					return null;
 				}
-				return new Response(obj.body, {
+				return protectObjectResponse(new Response(obj.body, {
 					headers: {
 						'Content-Type': obj.httpMetadata?.contentType || 'application/octet-stream',
 						'Content-Disposition': obj.httpMetadata?.contentDisposition || null,
 						'Cache-Control': obj.httpMetadata?.cacheControl || null
 					}
-				});
+				}));
 			}
 
 			if (storageType === 'S3') {
-				return await s3Service.getObj(c, key);
+				return protectObjectResponse(await s3Service.getObj(c, key));
 			}
 
 			return null;
