@@ -1,8 +1,8 @@
 <template>
   <div class="content-box" ref="contentBox">
     <div class="remote-bar" v-if="blockedRemoteCount > 0">
-      <span>{{ $t('remoteContentBlocked') }}</span>
-      <el-button link type="primary" size="small" @click="showRemoteContent">{{ $t('showRemoteContent') }}</el-button>
+      <span>{{ $t(remoteError ? 'remoteContentError' : 'remoteContentBlocked') }}</span>
+      <el-button link type="primary" size="small" :loading="loadingRemote" @click="showRemoteContent">{{ $t('showRemoteContent') }}</el-button>
     </div>
     <div ref="container" class="content-html"></div>
   </div>
@@ -13,19 +13,24 @@ import {ref, onMounted, watch} from 'vue'
 import {buildEmailContent} from '@/utils/email-html.js'
 import {useSettingStore} from '@/store/setting.js'
 import {toOssDomain} from '@/utils/convert.js'
+import {emailRemoteContent} from '@/request/email.js'
 
 const props = defineProps({
   html: {
     type: String,
     required: true
-  }
+  },
+  emailId: {type: Number, required: true},
 })
 
 const settingStore = useSettingStore()
 const container = ref(null)
 const contentBox = ref(null)
 const blockedRemoteCount = ref(0)
-const showRemote = ref(false)
+const remoteHtml = ref(null)
+const loadingRemote = ref(false)
+const remoteError = ref(false)
+let contentVersion = 0
 let shadowRoot = null
 
 // 静态外壳样式，不再拼接邮件内容，避免邮件样式逃逸成页面样式
@@ -71,14 +76,14 @@ const SHADOW_STYLE = `
 
 function allowedOrigins() {
   const ossDomain = toOssDomain(settingStore.settings.r2Domain)
-  return ossDomain ? [ossDomain] : []
+  const apiOrigin = new URL(import.meta.env.VITE_BASE_URL || '/api', window.location.href).origin
+  return [apiOrigin, ossDomain].filter(Boolean)
 }
 
 function updateContent() {
   if (!shadowRoot) return
 
-  const content = buildEmailContent(props.html, {
-    allowRemote: showRemote.value,
+  const content = buildEmailContent(remoteHtml.value ?? props.html, {
     allowedOrigins: allowedOrigins(),
   })
   blockedRemoteCount.value = content.blockedRemoteCount
@@ -95,9 +100,22 @@ function updateContent() {
   autoScale()
 }
 
-function showRemoteContent() {
-  showRemote.value = true
-  updateContent()
+async function showRemoteContent() {
+  if (loadingRemote.value) return
+  const version = contentVersion
+  loadingRemote.value = true
+  remoteError.value = false
+  try {
+    const result = await emailRemoteContent(props.emailId)
+    if (version !== contentVersion) return
+    if (typeof result?.content !== 'string') throw new Error('Invalid remote content response')
+    remoteHtml.value = result.content
+    updateContent()
+  } catch {
+    if (version === contentVersion) remoteError.value = true
+  } finally {
+    if (version === contentVersion) loadingRemote.value = false
+  }
 }
 
 function autoScale() {
@@ -124,9 +142,12 @@ onMounted(() => {
   updateContent()
 })
 
-watch(() => props.html, () => {
+watch(() => [props.emailId, props.html], () => {
   // 换一封邮件要重新拦截远程内容
-  showRemote.value = false
+  contentVersion += 1
+  remoteHtml.value = null
+  loadingRemote.value = false
+  remoteError.value = false
   updateContent()
 })
 </script>

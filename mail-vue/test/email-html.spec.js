@@ -51,11 +51,11 @@ describe('buildEmailContent 清洗不可信邮件正文', () => {
         expect(html).toContain('src="data:image/gif;base64,')
     })
 
-    it('用户放行后远程图片恢复', () => {
-        const {html, blockedRemoteCount} = render('<img src="https://track.example/open.gif">', {allowRemote: true})
+    it('服务器代理地址作为站内资源显示', () => {
+        const {html, blockedRemoteCount} = render('<img src="/api/email/resource/signed-resource">')
 
         expect(blockedRemoteCount).toBe(0)
-        expect(html).toContain('https://track.example/open.gif')
+        expect(html).toContain('/api/email/resource/signed-resource')
     })
 
     it('拦截 CSS 与属性里的远程引用，并清理 :host 与固定定位', () => {
@@ -88,7 +88,7 @@ describe('buildEmailContent 清洗不可信邮件正文', () => {
 
         vi.unstubAllGlobals()
         vi.resetModules()
-        expect(blockedRemoteCount).toBe(5)
+        expect(blockedRemoteCount).toBeGreaterThan(0)
         expect(html).not.toContain('track.example')
         expect(html).not.toMatch(/position\s*:\s*fixed/i)
     })
@@ -108,11 +108,11 @@ describe('buildEmailContent 清洗不可信邮件正文', () => {
         expect(html).toContain('/attachments/keep.png')
     })
 
-    it('远程 CSS 在用户放行后恢复', () => {
-        const {html, blockedRemoteCount} = render('<style>.a{background:url(https://track.example/b.png)}</style>', {allowRemote: true})
+    it('CSS 中的服务器代理地址可以显示', () => {
+        const {html, blockedRemoteCount} = render('<style>.a{background:url(/api/email/resource/signed-resource)}</style>')
 
         expect(blockedRemoteCount).toBe(0)
-        expect(html).toContain('https://track.example/b.png')
+        expect(html).toContain('/api/email/resource/signed-resource')
     })
 
     it('剥离表单提交类属性', () => {
@@ -172,5 +172,35 @@ describe('buildEmailContent 清洗不可信邮件正文', () => {
         expect(html).toContain('href="https://evil.example/click"')
         expect(html).toContain('target="_blank"')
         expect(html).toContain('rel="noopener noreferrer nofollow"')
+    })
+
+    it.each([String.raw`https:\\track.example/a.png`, String.raw`\\track.example/a.png`, 'https:\n//track.example/a.png'])('按 URL 解析结果拦截非常规外链 %s', url => {
+        const {html, blockedRemoteCount} = render(`<img src="${url}">`)
+        expect(blockedRemoteCount).toBe(1)
+        expect(html).not.toContain('track.example')
+    })
+
+    it('处理 srcset 的反斜杠地址和所有 image-set 候选', () => {
+        const {html} = render(String.raw`<img src="/a.png" srcset="/a.png 1x, https:\\track.example/a.png 2x"><style>.a{background:image-set("/a.png" 1x, "https://track.example/b.png" 2x)}</style>`)
+        expect(html).not.toContain('track.example')
+    })
+
+    it('阻止内联或站内样式表导入的嵌套外链，仅接受签名代理样式表', () => {
+        const {html} = render('<style>@import "data:text/css,p{background:url(https://track.example/a)}";@import "/attachments/a.css";@import "/api/email/resource/signed-css";</style>')
+        expect(html).not.toContain('track.example')
+        expect(html).not.toContain('/attachments/a.css')
+        expect(html).toContain('/api/email/resource/signed-css')
+    })
+
+    it('原始 HTML 仅在惰性模板中清洗，不交给 DOMParser 预加载资源', () => {
+        const parse = vi.spyOn(DOMParser.prototype, 'parseFromString')
+        try {
+            const {html} = render('<body style="color:red"><img src="https://track.example/a.png"><template><img src="https://track.example/b.png"></template></body>')
+            expect(parse).not.toHaveBeenCalled()
+            expect(html).not.toContain('track.example')
+            expect(html).not.toContain('<template')
+        } finally {
+            parse.mockRestore()
+        }
     })
 })

@@ -12,6 +12,7 @@ import emailMsgTemplate from '../template/email-msg';
 import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
 import domainUtils from "../utils/domain-uitls";
+import {createProxiedContent, RESOURCE_TTL_SECONDS} from './resource-proxy-service';
 
 // Quick View 预览链接从签发起最多有效 3 天。
 const EMAIL_PREVIEW_TTL_SECONDS = 3 * 24 * 60 * 60;
@@ -26,7 +27,7 @@ const telegramService = {
 		const now = Math.floor(Date.now() / 1000);
 
 		// 旧链接没有 exp，仍按签发时间执行相同的 3 天期限。
-		if (!result || !Number.isInteger(result.iat) || now >= result.iat + EMAIL_PREVIEW_TTL_SECONDS) {
+		if (!result || !Number.isSafeInteger(result.emailId) || result.emailId <= 0 || !Number.isInteger(result.iat) || now >= result.iat + EMAIL_PREVIEW_TTL_SECONDS) {
 			return emailTextTemplate('Access denied')
 		}
 
@@ -36,7 +37,16 @@ const telegramService = {
 
 			if (emailRow.content) {
 				const { r2Domain } = await settingService.query(c);
-				return emailHtmlTemplate(emailRow.content || '', r2Domain)
+				const baseUrl = new URL(c.req.url).origin + '/';
+				let content = emailRow.content;
+				if (params.remote === '1') {
+					const domain = domainUtils.toOssDomain(r2Domain);
+					content = await createProxiedContent(c, content.replace(/{{domain}}/g, (domain || '') + '/'), {
+						baseUrl, allowedOrigins: domain ? [domain] : [],
+						expiresAt: Math.min(result.exp || result.iat + EMAIL_PREVIEW_TTL_SECONDS, result.iat + EMAIL_PREVIEW_TTL_SECONDS, now + RESOURCE_TTL_SECONDS),
+					});
+				}
+				return emailHtmlTemplate(content, r2Domain, {baseUrl})
 			} else {
 				return emailTextTemplate(emailRow.text || '')
 			}

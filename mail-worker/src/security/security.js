@@ -97,7 +97,7 @@ app.use('*', async (c, next) => {
 	});
 
 	// Telegram 预览链接使用独立凭据。
-	if (index > -1 || path.startsWith('/telegram/getEmail/')) {
+	if (index > -1 || path.startsWith('/telegram/getEmail/') || path.startsWith('/email/resource/')) {
 		return await next();
 	}
 

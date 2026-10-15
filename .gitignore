@@ -28,3 +28,4 @@ mail-vue/dist
 git-tools.js
 docker/.env
 docs/ui-redesign/shots/
+/.cloudflare/cache

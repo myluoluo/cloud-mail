@@ -14,7 +14,7 @@ describe('emailHtmlTemplate', () => {
 	it('把正文放进不允许脚本、同源身份与表单提交的 sandbox iframe', () => {
 		const page = emailHtmlTemplate('<p>hi</p>', 'oss.example.com');
 
-		expect(page).toContain('<iframe id=\'mail-frame\' sandbox=\'allow-popups allow-popups-to-escape-sandbox\'>');
+		expect(parseHTML(page).document.querySelector('#mail-frame').getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox');
 		expect(page).not.toMatch(/allow-scripts|allow-same-origin|allow-top-navigation|allow-forms/);
 	});
 
@@ -100,7 +100,19 @@ describe('emailHtmlTemplate', () => {
 			'oss.example.com');
 
 		expect(page).not.toContain('<img');
-		expect(page).toContain('\\u003Cimg src=x');
+		expect(embeddedHtml(page)).not.toMatch(/<img|onerror/i);
+	});
+
+	it('默认拦截图片、srcset、CSS 导入和所有 image-set 候选', () => {
+		const page = emailHtmlTemplate(String.raw`<style>@import "https://track.example/a.css";.a{background:image-set("/local.png" 1x,"https://track.example/a.png" 2x)}</style><img src="https:\\track.example/a.png" srcset="https://track.example/b.png 2x"><video poster="https://track.example/p.png"></video>`, 'oss.example.com');
+		expect(embeddedHtml(page)).not.toContain('track.example');
+		expect(page).toContain('显示远程内容');
+	});
+
+	it('不保留可能在禁用脚本的沙箱内重新解析的 noscript 内容', () => {
+		const html = embeddedHtml(emailHtmlTemplate('<noscript><img src="https://track.example/a.png"></noscript><p>正文</p>', 'oss.example.com'));
+		expect(html).not.toMatch(/noscript|track\.example/i);
+		expect(html).toContain('<p>正文</p>');
 	});
 });
 

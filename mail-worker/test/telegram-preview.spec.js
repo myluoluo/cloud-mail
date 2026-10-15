@@ -33,9 +33,9 @@ async function newPreviewToken() {
 	return new URL(url).pathname.split('/').at(-1);
 }
 
-function preview(token) {
+function preview(token, remote = false) {
 	return worker.fetch(
-		new Request(`https://mail.example.com/api/telegram/getEmail/${token}`),
+		new Request(`https://mail.example.com/api/telegram/getEmail/${token}${remote ? '?remote=1' : ''}`),
 		context.env,
 		{}
 	);
@@ -102,5 +102,29 @@ describe('Telegram Quick View 三天有效期', () => {
 		vi.setSystemTime(ISSUED_AT.getTime() + 4 * 24 * 60 * 60 * 1000);
 
 		expect((await jwtUtils.verifyToken(context, token)).userId).toBe(1);
+	});
+
+	it('HTML 预览默认不含远端资源，主动显示后图片与 CSS 均为独立代理凭据', async () => {
+		getEmail.mockResolvedValue({emailId: 12345, content: '<img src="https://images.example.com/a.png"><style>@import "https://images.example.com/a.css";</style>'});
+		const token = await newPreviewToken();
+		const initial = await preview(token);
+		expect(initial.headers.get('Referrer-Policy')).toBe('no-referrer');
+		expect(await initial.text()).not.toContain('images.example.com');
+		const response = await preview(token, true);
+		const page = await response.text();
+		const html = JSON.parse(page.match(/srcdoc = (".*")/)[1]);
+		expect(html.match(/\/api\/email\/resource\//g)).toHaveLength(2);
+		expect(html).not.toContain('images.example.com');
+		expect(html).not.toContain(token);
+		// 生成页面不访问外部资源；唯一 fetch 是受控的通知发送。
+		expect(sendMessage).toHaveBeenCalledTimes(1);
+	});
+
+	it('过期预览不能通过显示远程内容续期', async () => {
+		const token = await newPreviewToken();
+		vi.setSystemTime(ISSUED_AT.getTime() + THREE_DAYS_SECONDS * 1000);
+		const page = await (await preview(token, true)).text();
+		expect(page).toContain('Access denied');
+		expect(getEmail).not.toHaveBeenCalled();
 	});
 });

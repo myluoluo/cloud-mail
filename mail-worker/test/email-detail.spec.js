@@ -103,4 +103,28 @@ describe('通知邮件详情入口', () => {
         permService.userPermKeys.mockResolvedValue(['all-email:query']);
         expect(await detail(43)).toMatchObject({code: 200, data: {emailId: 43, userId: 8}});
     });
+
+    it('代理内容入口沿用邮件可见性，客户端不能提交任意 URL 获得签名', async () => {
+        vi.spyOn(settingService, 'query').mockResolvedValue({});
+        sqlite.prepare('UPDATE email SET content = ? WHERE email_id = ?').run('<img src="https://images.example.com/a.png">', 42);
+        for (const [emailId, authorization, code] of [[42, token, 200], [43, token, 404], [44, token, 404], [42, '', 401]]) {
+            const response = await worker.fetch(new Request('https://mail.example.com/api/email/remote-content', {
+                method: 'POST', headers: {'Content-Type': 'application/json', Authorization: authorization},
+                body: JSON.stringify({emailId, url: 'https://unrelated.example.com/'}),
+            }), env, {});
+            const result = await response.json();
+            expect(result.code).toBe(code);
+            if (code === 200) {
+                expect(result.data.content).toContain('/api/email/resource/');
+                expect(result.data.content).not.toContain('unrelated');
+                expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+            }
+        }
+    });
+
+    it('资源入口在未登录时也必须提供独立有效签名', async () => {
+        const response = await worker.fetch(new Request('https://mail.example.com/api/email/resource/invalid'), env, {});
+        expect(response.status).toBe(403);
+        expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    });
 });

@@ -8,6 +8,10 @@ export function emailDetail(emailId) {
     return http.get('/email/detail', {params: {emailId}})
 }
 
+export function emailRemoteContent(emailId) {
+    return http.post('/email/remote-content', {emailId}, {noMsg: true})
+}
+
 export function emailDelete(emailIds) {
     return http.delete('/email/delete?emailIds=' + emailIds)
 }
