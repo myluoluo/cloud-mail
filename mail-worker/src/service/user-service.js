@@ -68,6 +68,18 @@ const userService = {
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
 	},
 
+	async verifyPassword(c, userRow, password) {
+		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) return false;
+		if (!userRow.password.startsWith('pbkdf2-sha256$')) {
+			const {salt, hash} = await cryptoUtils.hashPassword(password);
+			// 认证后并发改密时不能用旧密码迁移覆盖新凭据。
+			await orm(c).update(user).set({password: hash, salt}).where(and(
+				eq(user.userId, userRow.userId), eq(user.password, userRow.password), eq(user.salt, userRow.salt)
+			)).run();
+		}
+		return true;
+	},
+
 	selectByEmail(c, email) {
 		return orm(c).select().from(user).where(
 			and(

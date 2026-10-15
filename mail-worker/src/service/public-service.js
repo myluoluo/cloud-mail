@@ -193,7 +193,7 @@ const publicService = {
 			throw new BizError(t('notExistUser'));
 		}
 
-		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
+		if (!await userService.verifyPassword(c, userRow, password)) {
 			throw new BizError(t('IncorrectPwd'));
 		}
 	}

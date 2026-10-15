@@ -6,7 +6,9 @@ const { query, selectByEmailIncludeDel, updateUserInfo } = vi.hoisted(() => ({
 	query: vi.fn(), selectByEmailIncludeDel: vi.fn(), updateUserInfo: vi.fn()
 }));
 vi.mock('../src/service/setting-service', () => ({ default: { query } }));
-vi.mock('../src/service/user-service', () => ({ default: { selectByEmailIncludeDel, updateUserInfo } }));
+vi.mock('../src/service/user-service', async importOriginal => ({ default: {
+	...(await importOriginal()).default, selectByEmailIncludeDel, updateUserInfo
+} }));
 
 const { default: loginService } = await import('../src/service/login-service');
 const { default: worker } = await import('../src/index');

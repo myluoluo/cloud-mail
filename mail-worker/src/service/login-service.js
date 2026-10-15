@@ -11,7 +11,6 @@ import verifyUtils from '../utils/verify-utils';
 import accountService from './account-service';
 import settingService from './setting-service';
 import saltHashUtils from '../utils/crypto-utils';
-import cryptoUtils from '../utils/crypto-utils';
 import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import regKeyService from './reg-key-service';
@@ -258,7 +257,7 @@ const loginService = {
 			throw new BizError(t('isBanUser'));
 		}
 
-		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password) && !noVerifyPwd) {
+		if (!noVerifyPwd && !await userService.verifyPassword(c, userRow, password)) {
 			throw new BizError(t('IncorrectPwd'));
 		}
 
