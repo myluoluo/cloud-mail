@@ -6,6 +6,8 @@ import {resourcePolicy, rewriteCss, rewriteEmailResources} from '../../../shared
 const PURIFY_CONFIG = {
     USE_PROFILES: {html: true},
     ALLOW_DATA_ATTR: false,
+    // 在 DOMPurify 默认协议集合上保留本地上传的 blob 图片，其余资源仍由策略逐一检查。
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     ADD_TAGS: ['style', 'center', 'font', 'template'],
     FORBID_TAGS: [
         'form', 'input', 'button', 'select', 'option', 'textarea', 'label', 'fieldset', 'legend',

@@ -12,6 +12,8 @@ const MAX_RESOURCE_BYTES = 10 * 1024 * 1024;
 const MAX_CSS_BYTES = 512 * 1024;
 const RESOURCE_TIMEOUT_MS = 15 * 1000;
 const MAX_REDIRECTS = 5;
+// 对所有访客使用同一个 iOS Safari UA，不暴露真实设备或浏览器版本。
+const RESOURCE_USER_AGENT = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1';
 const RESPONSE_HEADERS = {
     'Cache-Control': 'private, no-store',
     'Referrer-Policy': 'no-referrer',
@@ -21,9 +23,10 @@ const RESPONSE_HEADERS = {
 };
 
 function anonymousHeaders(accept) {
+    // 从零构造请求头白名单，不复制访客请求头；DNS、资源与每一跳重定向共用此策略。
     // Workers 会补充 IP 头；显式覆盖，连同跨区和非 Cloudflare 目标一起匿名化。
     return {
-        'Accept': accept, 'Accept-Encoding': 'identity', 'User-Agent': 'Cloud-Mail-Resource-Proxy',
+        'Accept': accept, 'Accept-Encoding': 'identity', 'User-Agent': RESOURCE_USER_AGENT,
         'CF-Connecting-IP': '0.0.0.0', 'CF-Connecting-IPv6': '::', 'CF-Pseudo-IPv4': '0.0.0.0',
         'X-Real-IP': '0.0.0.0', 'X-Forwarded-For': '0.0.0.0', 'True-Client-IP': '0.0.0.0', 'CF-IPCountry': 'XX',
     };

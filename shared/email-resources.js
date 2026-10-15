@@ -12,8 +12,8 @@ export function resourcePolicy(options) {
             try {
                 const url = new URL(value, options.baseUrl)
                 if (['http:', 'https:'].includes(url.protocol)) {
-                    if (allowedOrigins.has(url.origin) && /^\/api\/email\/resource\/[\w.-]+$/.test(url.pathname)) return value
-                    if (!stylesheet && !options.proxyAll && allowedOrigins.has(url.origin)) return value
+                    // 外部 CSS 的解析基址属于发件方，proxyAll 时不得因同源或路径相似而豁免。
+                    if (!options.proxyAll && allowedOrigins.has(url.origin) && (!stylesheet || /^\/api\/email\/resource\/[\w.-]+$/.test(url.pathname))) return value
                     const replacement = options.rewriteRemote?.(url.href)
                     if (replacement) return replacement
                 }

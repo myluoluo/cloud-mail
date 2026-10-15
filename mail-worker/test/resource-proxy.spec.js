@@ -40,14 +40,31 @@ describe('邮件远程资源匿名代理', () => {
     });
 
     it('不转发访客身份、Cookie、Referer 或上游 Cookie，响应禁止缓存和活动内容', async () => {
+        context.req.raw = new Request(context.req.url, {headers: {
+            'User-Agent': 'Private browser', Cookie: 'session=private', Authorization: 'Bearer private',
+            Referer: 'https://mail.example.com/private', 'Accept-Language': 'private-language',
+            'Sec-CH-UA': 'private-device', 'X-Custom-Identity': 'private-user',
+        }});
+        const originalFetcher = fetcher.getMockImplementation();
+        fetcher.mockImplementation((input, options) => input === 'https://images.example.com/a.png'
+            ? new Response(null, {status: 302, headers: {Location: 'https://cdn.example.com/a.png', 'Set-Cookie': 'redirect=private'}})
+            : originalFetcher(input, options));
         const response = await proxyResource(context, await token('https://images.example.com/a.png'), {fetcher});
         expect(response.status).toBe(200);
         expect(await response.text()).toBe('image');
         expect(response.headers.get('Set-Cookie')).toBeNull();
         expect(response.headers.get('Cache-Control')).toBe('private, no-store');
         expect(response.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+        expect(fetcher.mock.calls.filter(([url]) => new URL(url).hostname !== 'cloudflare-dns.com').map(([url]) => url)).toEqual([
+            'https://images.example.com/a.png', 'https://cdn.example.com/a.png',
+        ]);
         for (const [, options] of fetcher.mock.calls) {
             const headers = new Headers(options.headers);
+            expect(headers.get('user-agent')).toBe('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1');
+            expect([...headers.keys()].sort()).toEqual([
+                'accept', 'accept-encoding', 'user-agent', 'cf-connecting-ip', 'cf-connecting-ipv6',
+                'cf-pseudo-ipv4', 'x-real-ip', 'x-forwarded-for', 'true-client-ip', 'cf-ipcountry',
+            ].sort());
             for (const name of ['authorization', 'cookie', 'referer', 'forwarded']) expect(headers.has(name)).toBe(false);
             expect(headers.get('cf-connecting-ip')).toBe('0.0.0.0');
             expect(headers.get('x-real-ip')).toBe('0.0.0.0');
@@ -127,6 +144,23 @@ describe('邮件远程资源匿名代理', () => {
         expect(response.status).toBe(200);
         expect(css.match(/\/api\/email\/resource\//g)).toHaveLength(3);
         expect(css).not.toMatch(/nested\.css|font\.woff2|\.\.\/a\.png/);
+    });
+
+    it('外部 CSS 中看似代理路径的图片和导入仍改写为本站代理', async () => {
+        fetcher.mockImplementation(async input => new URL(input).hostname === 'cloudflare-dns.com'
+            ? Response.json({Status: 0, Answer: [{type: 1, data: '93.184.216.34'}]})
+            : new Response('@import "https://images.example.com/api/email/resource/nested.css";p{background:url(/api/email/resource/pixel.gif)}', {headers: {'Content-Type': 'text/css'}}));
+        const response = await proxyResource(context, await token('https://images.example.com/style.css'), {fetcher});
+        const css = await response.text();
+        expect(response.status).toBe(200);
+        expect(css).not.toContain('images.example.com');
+        const signed = [...css.matchAll(/https:\/\/mail.example.com\/api\/email\/resource\/([\w.-]+)/g)];
+        expect(signed).toHaveLength(2);
+        const targets = await Promise.all(signed.map(async match => (await jwtUtils.verifyToken(context, match[1])).url));
+        expect(targets).toEqual([
+            'https://images.example.com/api/email/resource/nested.css',
+            'https://images.example.com/api/email/resource/pixel.gif',
+        ]);
     });
 
     it('CSS 子资源凭据不会延长上级期限', async () => {

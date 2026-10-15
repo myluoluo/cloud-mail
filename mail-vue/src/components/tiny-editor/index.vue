@@ -11,6 +11,8 @@ import loading from "@/components/loading/index.vue";
 import {useI18n} from 'vue-i18n'
 import {useUiStore} from '@/store/ui.js'
 import {useSettingStore} from '@/store/setting.js'
+import {buildEmailContent} from '@/utils/email-html.js'
+import {toOssDomain} from '@/utils/convert.js'
 
 defineExpose({
   clearEditor,
@@ -38,6 +40,10 @@ const editorRef = ref(null);
 const showLoading = ref(false);
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
+// 回复、转发和草稿在交给编辑器前清洗，不继承详情页的远程内容放行状态。
+const initialContent = computed(() => buildEmailContent(props.defValue, {
+  allowedOrigins: [toOssDomain(settingStore.settings.r2Domain)],
+}).html);
 
 onMounted(() => {
   initTinyMCE();
@@ -47,9 +53,9 @@ onBeforeUnmount(() => {
   destroyEditor();
 });
 
-watch(() => props.defValue, (newValue) => {
-  if (editor.value && editor.value.getContent() !== newValue) {
-    editor.value.setContent(newValue);
+watch(() => props.defValue, () => {
+  if (editor.value && editor.value.getContent() !== initialContent.value) {
+    editor.value.setContent(initialContent.value);
   }
 });
 
@@ -113,7 +119,7 @@ function initEditor() {
     setup: (ed) => {
       editor.value = ed;
       ed.on('init', () => {
-        ed.setContent(props.defValue);
+        ed.setContent(initialContent.value);
         isInitialized.value = true;
       });
       ed.on('input change', () => {
