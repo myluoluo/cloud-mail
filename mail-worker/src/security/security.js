@@ -96,8 +96,8 @@ app.use('*', async (c, next) => {
 		return path.startsWith(item);
 	});
 
-	// Telegram 仅预览链接和入站 webhook 使用各自凭据，其余接口校验登录会话。
-	if (index > -1 || path === '/telegram/webhook' || path.startsWith('/telegram/getEmail/')) {
+	// Telegram 预览链接使用独立凭据。
+	if (index > -1 || path.startsWith('/telegram/getEmail/')) {
 		return await next();
 	}
 

@@ -2,18 +2,10 @@ import app from '../hono/hono';
 import result from '../model/result';
 import settingService from '../service/setting-service';
 import userContext from "../security/user-context";
-import telegramService from '../service/telegram-service';
 
 app.put('/setting/set', async (c) => {
 	const body = await c.req.json();
 	await settingService.set(c, body);
-	if (body.customDomain !== undefined || body.tgBotToken !== undefined) {
-		try {
-			await telegramService.setupWebhook(c);
-		} catch (e) {
-			console.error('Auto setup Telegram Webhook failed:', e);
-		}
-	}
 	return c.json(result.ok());
 });
 
