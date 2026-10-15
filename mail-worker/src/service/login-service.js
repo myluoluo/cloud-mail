@@ -22,13 +22,13 @@ import verifyRecordService from './verify-record-service';
 
 const loginService = {
 
-	async register(c, params, oauth = false) {
+	async register(c, params, oauthIdentity = null) {
 
 		const { email, password, token, code } = params;
 
 		let { regKey, register, registerVerify, regVerifyCount, minEmailPrefix, emailPrefixFilter } = await settingService.query(c)
 
-		if (oauth) {
+		if (oauthIdentity) {
 			registerVerify = settingConst.registerVerify.CLOSE;
 			register = settingConst.register.OPEN;
 		}
@@ -133,9 +133,14 @@ const loginService = {
 
 		const { salt, hash } = await saltHashUtils.hashPassword(password);
 
-		const userId = await userService.insert(c, { email, regKeyId,password: hash, salt, type: type || defType });
+		const userData = { email, regKeyId, password: hash, salt, type: type || defType };
+		const userId = oauthIdentity
+			? await this.registerOAuthAccount(c, {...userData, oauthId: oauthIdentity.oauthId})
+			: await userService.insert(c, userData);
 
-		await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
+		if (!oauthIdentity) {
+			await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
+		}
 
 		await userService.updateUserInfo(c, userId, true);
 
@@ -150,6 +155,24 @@ const loginService = {
 
 		return {regVerifyOpen}
 
+	},
+
+	async registerOAuthAccount(c, {email, password, salt, type, regKeyId, oauthId}) {
+		// 资格检查与写入同批提交：并发重用凭据时不能留下额外用户或邮箱。
+		const [created] = await c.env.db.batch([
+			c.env.db.prepare(`INSERT INTO user (email, password, salt, type, reg_key_id)
+				SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM oauth WHERE oauth_id = ? AND user_id = 0)
+				RETURNING user_id`).bind(email, password, salt, type, regKeyId, oauthId),
+			c.env.db.prepare(`INSERT INTO account (email, name, user_id)
+				SELECT email, ?, user_id FROM user WHERE email = ?
+				AND EXISTS (SELECT 1 FROM oauth WHERE oauth_id = ? AND user_id = 0)`)
+				.bind(emailUtils.getName(email), email, oauthId),
+			c.env.db.prepare(`UPDATE oauth SET user_id = (SELECT user_id FROM user WHERE email = ?)
+				WHERE oauth_id = ? AND user_id = 0`).bind(email, oauthId)
+		]);
+		const userId = created.results[0]?.user_id;
+		if (!userId) throw new BizError('OAuth 身份已绑定', 409);
+		return userId;
 	},
 
 	async registerVerify() {

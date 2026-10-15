@@ -8,6 +8,10 @@ import cryptoUtils from "../utils/crypto-utils";
 import settingService from "./setting-service";
 import pocketIdService from './pocket-id-service';
 import {t} from '../i18n/i18n';
+import jwtUtils from '../utils/jwt-utils';
+
+// 未绑定身份的证明只用于十分钟内创建邮箱，不可作为登录会话。
+const BINDING_TTL_SECONDS = 600;
 
 const oauthService = {
 
@@ -65,27 +69,34 @@ const oauthService = {
 
 	async bindUser(c, params) {
 
-		const { email, oauthUserId, platform, code } = params;
+		const { email, bindingToken, code } = params;
+		const identity = await jwtUtils.verifyToken(c, bindingToken);
+		const now = Math.floor(Date.now() / 1000);
+		if (!identity || identity.purpose !== 'oauth-bind' ||
+			!Number.isInteger(identity.iat) || !Number.isInteger(identity.exp) ||
+			now >= identity.exp || identity.exp > identity.iat + BINDING_TTL_SECONDS ||
+			!Number.isSafeInteger(identity.oauthId) || identity.oauthId <= 0 ||
+			typeof identity.oauthUserId !== 'string' || !['linuxdo', 'github', 'google'].includes(identity.platform)) {
+			throw new BizError('OAuth 绑定凭据无效', 401);
+		}
+		const switchKey = {linuxdo: 'linuxdoSwitch', github: 'githubSwitch', google: 'googleSwitch'}[identity.platform];
+		this.assertEnabled(await settingService.query(c), switchKey);
 
-		const oauthRow = await this.getByIdentity(c, platform, oauthUserId);
-		if (!oauthRow) {
-			throw new BizError('OAuth 身份不存在', 403);
+		const oauthRow = await this.getByIdentity(c, identity.platform, identity.oauthUserId);
+		if (!oauthRow || oauthRow.oauthId !== identity.oauthId) {
+			throw new BizError('OAuth 绑定凭据无效', 401);
+		}
+		if (oauthRow.userId) {
+			throw new BizError('OAuth 身份已绑定', 409);
 		}
 
-		let userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
+		// 身份来自已验证凭据；创建邮箱和消费绑定资格在同一 D1 原子批次完成。
+		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, {oauthId: oauthRow.oauthId});
+		const userRow = await userService.selectByEmail(c, email);
 
-		if (userRow) {
-			throw new BizError('用户已绑定有邮箱')
-		}
-
-		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd(), code }, true);
-
-		userRow = await userService.selectByEmail(c, email);
-
-		await orm(c).update(oauth).set({ userId: userRow.userId }).where(eq(oauth.oauthId, oauthRow.oauthId)).run();
 		const jwtToken = await loginService.login(c, { email, password: null }, true);
 
-		return { userInfo: oauthRow, token: jwtToken}
+		return { userInfo: {...oauthRow, userId: userRow.userId}, token: jwtToken}
 	},
 
 	async linuxDoLogin(c, params) {
@@ -241,7 +252,11 @@ const oauthService = {
 		const userRow = await userService.selectByIdIncludeDel(c, oauthRow.userId);
 
 		if (!userRow) {
-			return { userInfo: oauthRow, token: null };
+			const bindingToken = await jwtUtils.generateToken(c, {
+				purpose: 'oauth-bind', oauthId: oauthRow.oauthId,
+				platform: oauthRow.platform, oauthUserId: oauthRow.oauthUserId
+			}, BINDING_TTL_SECONDS);
+			return { userInfo: oauthRow, token: null, bindingToken };
 		}
 
 		const JwtToken = await loginService.login(c, { email: userRow.email, password: null }, true);

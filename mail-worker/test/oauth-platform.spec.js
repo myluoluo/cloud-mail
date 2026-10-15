@@ -53,7 +53,8 @@ describe('传统 OAuth 平台身份隔离', () => {
     it('绑定只更新所选平台的记录', async () => {
         identity('github');
         identity('linuxdo');
-        const result = await request('/oauth/bindUser', {email: 'bound@example.com', oauthUserId: '4242', platform: 'github'}, 'PUT');
+        const authorization = await request('/oauth/github/login', {code: 'test-code', redirectUri: 'https://mail.example.com/login'});
+        const result = await request('/oauth/bindUser', {email: 'bound@example.com', bindingToken: authorization.data.bindingToken}, 'PUT');
         expect(result.code).toBe(200);
         expect(fixture.sqlite.prepare('SELECT user_id FROM oauth WHERE platform = ?').get('github').user_id).toBeGreaterThan(0);
         expect(fixture.sqlite.prepare('SELECT user_id FROM oauth WHERE platform = ?').get('linuxdo').user_id).toBe(0);

@@ -81,10 +81,10 @@ describe('登录入口与通知链接跳转', () => {
         expect(oauthPocketIdLogin).toHaveBeenCalledWith('test-code', 'test-state', `${window.location.origin}/login`)
     })
 
-    it('未绑定 OAuth 身份提交邮箱时保留提供方，避免跨平台同号混用', async () => {
+    it('未绑定 OAuth 身份提交邮箱时使用服务端签发的专用凭据', async () => {
         sessionStorage.setItem('oauthProvider', 'github')
         await router.replace('/login?code=test-code&state=github')
-        oauthGithubLogin.mockResolvedValue({token: null, userInfo: {platform: 'github', oauthUserId: '4242'}})
+        oauthGithubLogin.mockResolvedValue({token: null, bindingToken: 'test-binding-proof', userInfo: {platform: 'github', oauthUserId: '4242'}})
         oauthBindUser.mockRejectedValue(new Error('测试不提交真实绑定'))
         const host = mountLogin()
         await vi.waitFor(() => expect(ElMessage).toHaveBeenCalledWith(expect.objectContaining({message: '请注册绑定一个邮箱'})))
@@ -92,9 +92,9 @@ describe('登录入口与通知链接跳转', () => {
         input.value = 'bound@example.com'
         input.dispatchEvent(new Event('input', {bubbles: true}))
         host.querySelector('.bind-container button').click()
-        await vi.waitFor(() => expect(oauthBindUser).toHaveBeenCalledWith(expect.objectContaining({
-            email: 'bound@example.com', oauthUserId: '4242', platform: 'github',
-        })))
+        await vi.waitFor(() => expect(oauthBindUser).toHaveBeenCalledWith({
+            email: 'bound@example.com', bindingToken: 'test-binding-proof', code: '',
+        }))
     })
 
     it('开发预览显示 Pocket ID，可展开密码登录，点击仍调用真实授权入口', async () => {
