@@ -5,6 +5,7 @@ const en = {
 	emptyEmail: 'Email cannot be empty',
 	emptyAccountId: 'accountId cannot be empty',
 	notEmail: 'Invalid email',
+	aliasRegisterForbidden: 'Sign in to the primary mailbox before creating a + alias',
 	emptyRecipient: 'Recipient cannot be empty',
 	notExistDomain: 'Email domain does not exist',
 	isDelAccount: 'This Email has been deleted',

@@ -41,6 +41,11 @@ const loginService = {
 			throw new BizError(t('notEmail'));
 		}
 
+		// 加号别名只能经登录后的添加邮箱流程验证主地址归属。
+		if (emailUtils.getName(email).includes('+')) {
+			throw new BizError(t('aliasRegisterForbidden'), 403);
+		}
+
 		if (emailUtils.getName(email).length < minEmailPrefix) {
 			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
 		}

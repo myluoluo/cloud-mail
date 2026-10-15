@@ -5,6 +5,7 @@ const zh = {
 	emptyEmail: '邮箱不能为空',
 	emptyAccountId: 'accountId不能为空',
 	notEmail: '非法邮箱',
+	aliasRegisterForbidden: '带 + 的邮箱别名只能由主邮箱用户登录后创建',
 	emptyRecipient: '收件人不能为空',
 	notExistDomain: '不存在的邮箱域名',
 	isDelAccount: '该邮箱已被注销',
