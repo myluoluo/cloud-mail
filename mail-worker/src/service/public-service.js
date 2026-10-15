@@ -14,6 +14,8 @@ import { isDel, roleConst } from '../const/entity-const';
 import email from '../entity/email';
 import userService from './user-service';
 import KvConst from '../const/kv-const';
+import settingService from './setting-service';
+import turnstileService from './turnstile-service';
 
 const publicService = {
 
@@ -162,6 +164,12 @@ const publicService = {
 
 	async genToken(c, params) {
 
+		const setting = await settingService.query(c);
+		if (setting.siteKey && setting.secretKey) {
+			await turnstileService.verify(c, params.token, {
+				action: 'api-token', hostname: new URL(c.req.url).hostname
+			});
+		}
 		await this.verifyUser(c, params)
 
 		const uuid = uuidv4();
