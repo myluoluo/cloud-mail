@@ -3,11 +3,12 @@ const app = new Hono();
 
 import result from '../model/result';
 import { cors } from 'hono/cors';
+import BizError from '../error/biz-error';
 
 app.use('*', cors());
 
 app.onError((err, c) => {
-	if (err.name === 'BizError') {
+	if (err instanceof BizError) {
 		console.log(err.message);
 	} else {
 		console.error(err);
@@ -29,7 +30,10 @@ app.onError((err, c) => {
 		return c.json(result.fail('请按照文档更新数据库<br/>Please update the database as documented',502));
 	}
 
-	return c.json(result.fail(err.message, err.code));
+	if (err instanceof BizError) {
+		return c.json(result.fail(err.message, err.code));
+	}
+	return c.json(result.fail('内部服务错误，请稍后重试 / Internal server error', 500));
 });
 
 export default app;
