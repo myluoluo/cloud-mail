@@ -331,7 +331,11 @@ function createSenderPie() {
       },
       backgroundColor: topic.value.background,
       formatter: params => {
-        return `${params.marker} ${params.name}： ${params.value} (${params.percent}%)`;
+        // 发件人名称来自邮件头，不能作为 tooltip HTML 执行。
+        const name = String(params.name ?? '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+        return `${params.marker} ${name}： ${params.value} (${params.percent}%)`;
       }
     },
     legend: {
